@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Registre des CSI du Niger</title>
+<style>
+/* ── Variables couleur ─────────────────────────────────────────────────────── */
+:root {
+  --bg:#fbfaf6; --ink:#17231c; --mut:#5d6b62; --line:#d9ddd2;
+  --vert:#1b5e3b; --ocre:#b8741a; --card:#fff; --danger:#c0392b;
+  --vert-clair:#e8f5ef; --ocre-clair:#fef3e2;
+  --shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#121a15;--ink:#e8ede6;--mut:#9aa89f;--line:#2b3a31;
+        --vert:#5fbf8a;--ocre:#e0a04a;--card:#18221c;--danger:#e74c3c;
+        --vert-clair:#1a2e21;--ocre-clair:#2e2210;}
+}
+/* ── Reset & base ─────────────────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+     background:var(--bg);color:var(--ink);min-height:100vh;}
+a{color:var(--vert)}
+/* ── En-tête ──────────────────────────────────────────────────────────────── */
+header{
+  border-top:6px solid var(--ocre);border-bottom:6px solid var(--vert);
+  padding:12px 16px;display:flex;gap:12px;align-items:center;
+  justify-content:space-between;flex-wrap:wrap;background:var(--card);
+  box-shadow:var(--shadow);position:sticky;top:0;z-index:100;
+}
+.header-left{display:flex;align-items:center;gap:10px}
+.logo{font-size:1.5rem}
+h1{font-size:1.15rem;font-weight:700}
+.subtitle{font-size:.75rem;color:var(--mut);display:block}
+.user-info{font-size:.82rem;color:var(--mut);text-align:right;line-height:1.3}
+.user-info strong{display:block;color:var(--ink)}
+.badge{
+  display:inline-block;padding:1px 8px;border-radius:20px;font-size:.72rem;
+  font-weight:600;text-transform:uppercase;letter-spacing:.04em;
+}
+.badge-admin{background:#fef3e2;color:#92400e}
+.badge-superviseur{background:#e0f2fe;color:#075985}
+.badge-agent{background:#f0fdf4;color:#166534}
+/* ── Navigation ───────────────────────────────────────────────────────────── */
+nav{
+  display:flex;gap:2px;padding:6px 12px;
+  border-bottom:1px solid var(--line);overflow-x:auto;background:var(--card);
+}
+nav button{
+  border:0;background:none;color:var(--mut);padding:9px 16px;
+  font:inherit;cursor:pointer;border-bottom:3px solid transparent;
+  white-space:nowrap;border-radius:4px 4px 0 0;transition:color .15s;
+}
+nav button:hover{color:var(--ink);background:var(--bg)}
+nav button.on{color:var(--ink);font-weight:600;border-color:var(--vert);background:var(--bg)}
+/* ── Main ─────────────────────────────────────────────────────────────────── */
+main{max-width:1000px;margin:0 auto;padding:20px 16px}
+section{animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+/* ── Titres ───────────────────────────────────────────────────────────────── */
+h2{font-size:1.05rem;margin:24px 0 10px;display:flex;align-items:center;gap:8px}
+h2::before{content:'';display:block;width:4px;height:1em;background:var(--vert);border-radius:2px}
+h3{font-size:.95rem;margin:16px 0 8px;color:var(--mut)}
+/* ── Boutons ──────────────────────────────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  border:0;border-radius:6px;padding:9px 18px;font:inherit;cursor:pointer;
+  font-size:.9rem;font-weight:500;transition:opacity .15s,transform .1s;
+}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn-primary{background:var(--vert);color:#fff}
+.btn-secondary{background:none;border:1px solid var(--line);color:var(--ink)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-ghost{background:none;color:var(--mut);padding:6px 10px}
+.btn-sm{padding:5px 12px;font-size:.82rem}
+/* ── Formulaires ──────────────────────────────────────────────────────────── */
+input,select,textarea{
+  font:inherit;padding:8px 10px;border:1px solid var(--line);
+  border-radius:6px;background:var(--card);color:var(--ink);
+  max-width:100%;transition:border-color .15s;
+}
+input:focus,select:focus{outline:none;border-color:var(--vert);box-shadow:0 0 0 2px rgba(27,94,59,.15)}
+input[type=number]{width:88px}
+input[type=checkbox]{width:16px;height:16px;accent-color:var(--vert)}
+:focus-visible{outline:3px solid var(--ocre);outline-offset:2px}
+label.field{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--mut)}
+label.field>span{font-weight:500}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px}
+/* ── Cartes ───────────────────────────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;text-align:center;box-shadow:var(--shadow)}
+.stat-num{font-size:2rem;font-weight:700;color:var(--vert);line-height:1}
+.stat-label{font-size:.8rem;color:var(--mut);margin-top:4px}
+/* ── Tableaux ─────────────────────────────────────────────────────────────── */
+.tw{overflow-x:auto;border-radius:8px;border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;background:var(--card)}
+th,td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;font-size:.88rem}
+th{background:var(--bg);color:var(--mut);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}
+tr:last-child td{border-bottom:0}
+tr:hover td{background:var(--bg)}
+/* ── Barres de progression ────────────────────────────────────────────────── */
+.bar-list{display:flex;flex-direction:column;gap:8px}
+.bar{display:grid;grid-template-columns:minmax(120px,200px) 1fr 60px;gap:10px;align-items:center;font-size:.88rem}
+.bar-track{height:12px;background:var(--line);border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;background:var(--vert);border-radius:6px;transition:width .4s ease}
+.bar.ocre .bar-fill{background:var(--ocre)}
+/* ── Alertes & messages ───────────────────────────────────────────────────── */
+.alert{padding:12px 16px;border-radius:8px;margin:12px 0;border-left:4px solid;font-size:.9rem;display:flex;gap:10px;align-items:flex-start}
+.alert-success{background:var(--vert-clair);border-color:var(--vert);color:#155724}
+.alert-error  {background:#fef2f2;border-color:var(--danger);color:#991b1b}
+.alert-warn   {background:var(--ocre-clair);border-color:var(--ocre);color:#92400e}
+.alert-info   {background:#eff6ff;border-color:#3b82f6;color:#1e40af}
+/* ── Spinner de chargement ────────────────────────────────────────────────── */
+.spinner{
+  display:inline-block;width:20px;height:20px;
+  border:3px solid var(--line);border-top-color:var(--vert);
+  border-radius:50%;animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-overlay{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:40px;color:var(--mut);font-size:.9rem;
+}
+/* ── Pagination ───────────────────────────────────────────────────────────── */
+.pagination{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.pagination button{padding:6px 12px;border:1px solid var(--line);background:var(--card);
+                   border-radius:6px;cursor:pointer;font:inherit;font-size:.85rem}
+.pagination button.active{background:var(--vert);color:#fff;border-color:var(--vert)}
+.pagination span{font-size:.82rem;color:var(--mut)}
+/* ── Dialogs ──────────────────────────────────────────────────────────────── */
+dialog{
+  border:1px solid var(--line);border-radius:12px;background:var(--card);
+  color:var(--ink);padding:0;max-width:460px;width:95%;box-shadow:0 8px 32px rgba(0,0,0,.15);
+}
+dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(2px)}
+.dlg-header{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.dlg-body{padding:20px}
+.dlg-footer{padding:12px 20px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+/* ── Badge statut rapport ────────────────────────────────────────────────── */
+.status-ok  {color:#15803d;font-weight:600}
+.status-nok {color:var(--mut)}
+/* ── Offline banner ───────────────────────────────────────────────────────── */
+#offline-banner{
+  display:none;background:#fef2f2;color:#991b1b;
+  text-align:center;padding:6px;font-size:.85rem;border-bottom:2px solid var(--danger);
+}
+/* ── Utilitaires ──────────────────────────────────────────────────────────── */
+.hid{display:none!important}
+.empty{color:var(--mut);padding:24px 0;text-align:center}
+.flex{display:flex;gap:8px;align-items:center}
+.ml-auto{margin-left:auto}
+.text-right{text-align:right}
+.text-muted{color:var(--mut)}
+.mt{margin-top:16px}
+</style>
+</head>
+<body>
+
+<!-- Bannière hors-ligne -->
+<div id="offline-banner">⚠️ Connexion Internet perdue — vos modifications seront synchronisées au retour</div>
+
+<!-- En-tête -->
+<header>
+  <div class="header-left">
+    <span class="logo">🏥</span>
+    <div>
+      <h1>Registre des CSI</h1>
+      <span class="subtitle">République du Niger — Système National de Santé</span>
+    </div>
+  </div>
+  <div class="flex">
+    <div class="user-info hid" id="user-info"></div>
+    <button class="btn btn-secondary btn-sm" id="auth-btn"></button>
+  </div>
+</header>
+
+<!-- Navigation -->
+<nav id="nav">
+  <button data-v="tb" class="on">📊 Tableau de bord</button>
+  <button data-v="liste">📋 Liste des CSI</button>
+  <button data-v="saisie">✏️ Saisie mensuelle</button>
+  <button data-v="utilisateurs" class="hid" id="nav-users">👥 Utilisateurs</button>
+</nav>
+
+<main>
+  <section id="tb"></section>
+  <section id="liste" class="hid"></section>
+  <section id="saisie" class="hid"></section>
+  <section id="utilisateurs" class="hid"></section>
+  <div id="msg-zone"></div>
+</main>
+
+<!-- Dialog de connexion -->
+<dialog id="dlg-login">
+  <div class="dlg-header">
+    <strong>🔐 Connexion</strong>
+    <button class="btn btn-ghost" onclick="document.getElementById('dlg-login').close()">✕</button>
+  </div>
+  <div class="dlg-body">
+    <form id="login-form" method="dialog">
+      <div class="row" style="flex-direction:column;gap:12px">
+        <label class="field"><span>Email</span>
+          <input type="email" id="pw-email" autocomplete="username" required placeholder="admin@csi-niger.ne">
+        </label>
+        <label class="field"><span>Mot de passe</span>
+          <input type="password" id="pw-pass" autocomplete="current-password" required minlength="6">
+        </label>
+      </div>
+      <div id="login-err" class="hid"></div>
+      <div class="dlg-footer" style="border:0;padding:0;margin-top:16px">
+        <button class="btn btn-primary" type="submit" id="login-btn">Se connecter</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- Dialog de confirmation générique -->
+<dialog id="dlg-confirm">
+  <div class="dlg-header">
+    <strong id="confirm-title">Confirmer</strong>
+  </div>
+  <div class="dlg-body">
+    <p id="confirm-msg"></p>
+  </div>
+  <div class="dlg-footer">
+    <button class="btn btn-secondary" id="confirm-no">Annuler</button>
+    <button class="btn btn-primary" id="confirm-yes">Confirmer</button>
+  </div>
+</dialog>
+
+<script>
+'use strict';
+
+// ── Constantes métier ──────────────────────────────────────────────────────────
+const MOTIFS   = ['Paludisme','Diarrhée','Infections respiratoires','Autres motifs'];
+const VACCINS  = ['BCG','Penta 1','Penta 3','Polio (VPO3)','Rougeole','Fièvre jaune'];
+const PRODUITS = ['ACT (paludisme)','TDR paludisme','SRO + Zinc','Amoxicilline','Paracétamol'];
+const SERVICES = ['Consultation','Vaccination','Maternité','Nutrition','Laboratoire','Pharmacie'];
+const COLS     = [['moins5','M','< 5 ans G'],['moins5','F','< 5 ans F'],['5plus','M','5+ Homme'],['5plus','F','5+ Femme']];
+
+// ── Helpers DOM ────────────────────────────────────────────────────────────────
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mois0 = new Date().toISOString().slice(0, 7);
+
+// ── État global ────────────────────────────────────────────────────────────────
+let state = { regions: [], user: null, token: null };
+
+// ── Chargement persistant ──────────────────────────────────────────────────────
+try {
+  const saved = JSON.parse(localStorage.getItem('csi_session') || '{}');
+  if (saved.token && saved.user) { state.token = saved.token; state.user = saved.user; }
+} catch(e) {}
+
+function saveSession() {
+  if (state.token) localStorage.setItem('csi_session', JSON.stringify({ token: state.token, user: state.user }));
+  else localStorage.removeItem('csi_session');
+}
+
+// ── API ────────────────────────────────────────────────────────────────────────
+async function api(url, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
+
+  const res = await fetch('/api' + url, {
+    method: opts.method || 'GET',
+    headers,
+    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+  });
+
+  if (res.status === 401) { logout(); throw new Error('Session expirée. Veuillez vous reconnecter.'); }
+
+  let data;
+  try { data = await res.json(); } catch { data = {}; }
+
+  if (!res.ok) throw new Error(data.erreur || `Erreur ${res.status}`);
+  return data;
+}
+
+// ── Notifications ──────────────────────────────────────────────────────────────
+let msgTimer;
+function notify(msg, type = 'success') {
+  const zone = $('#msg-zone');
+  clearTimeout(msgTimer);
+  if (!msg) { zone.innerHTML = ''; return; }
+  const icons = { success: '✅', error: '❌', warn: '⚠️', info: 'ℹ️' };
+  zone.innerHTML = `<div class="alert alert-${type}" role="status">${icons[type]} ${esc(msg)}</div>`;
+  zone.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (type === 'success') msgTimer = setTimeout(() => { zone.innerHTML = ''; }, 5000);
+}
+
+// ── Spinner de chargement ──────────────────────────────────────────────────────
+function loading(msg = 'Chargement...') {
+  return `<div class="loading-overlay"><div class="spinner"></div><span>${esc(msg)}</span></div>`;
+}
+
+// ── Confirmation dialog ────────────────────────────────────────────────────────
+function confirm(title, msg) {
+  return new Promise(resolve => {
+    $('#confirm-title').textContent = title;
+    $('#confirm-msg').textContent = msg;
+    const dlg = $('#dlg-confirm');
+    dlg.showModal();
+    $('#confirm-yes').onclick = () => { dlg.close(); resolve(true); };
+    $('#confirm-no').onclick  = () => { dlg.close(); resolve(false); };
+  });
+}
+
+// ── Auth ───────────────────────────────────────────────────────────────────────
+function logout() {
+  state.token = null; state.user = null;
+  saveSession();
+  updateUI();
+}
+
+function isLogged() { return !!state.token; }
+function isAdmin()  { return state.user?.role === 'admin'; }
+function isSuperviseur() { return ['admin','superviseur'].includes(state.user?.role); }
+
+function updateUI() {
+  const authBtn = $('#auth-btn');
+  const userInfo = $('#user-info');
+  const navUsers = $('#nav-users');
+
+  if (isLogged() && state.user) {
+    authBtn.textContent = 'Se déconnecter';
+    authBtn.onclick = async () => {
+      if (await confirm('Déconnexion', 'Voulez-vous vous déconnecter ?')) logout();
+    };
+    const badges = { admin: 'badge-admin', superviseur: 'badge-superviseur', agent: 'badge-agent' };
+    const labels = { admin: 'Admin', superviseur: 'Superviseur', agent: 'Agent' };
+    userInfo.classList.remove('hid');
+    userInfo.innerHTML = `
+      <strong>${esc(state.user.nom)}</strong>
+      <span class="badge ${badges[state.user.role]}">${labels[state.user.role]}</span>
+    `;
+    // Onglet utilisateurs : admin seulement
+    if (isAdmin()) navUsers.classList.remove('hid');
+    else navUsers.classList.add('hid');
+  } else {
+    authBtn.textContent = '🔐 Se connecter';
+    authBtn.onclick = () => $('#dlg-login').showModal();
+    userInfo.classList.add('hid');
+    navUsers.classList.add('hid');
+  }
+  render();
+}
+
+// ── Navigation ─────────────────────────────────────────────────────────────────
+$$('nav button').forEach(b => b.onclick = () => {
+  $$('nav button').forEach(x => x.classList.toggle('on', x === b));
+  $$('main section').forEach(s => s.classList.toggle('hid', s.id !== b.dataset.v));
+  notify('');
+  render();
+});
+
+const curView = () => $('nav .on')?.dataset.v;
+
+// ── Formulaire de connexion ───────────────────────────────────────────────────
+$('#login-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const btn = $('#login-btn');
+  const errDiv = $('#login-err');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Connexion...';
+  errDiv.className = 'hid';
+
+  try {
+    const data = await api('/login', {
+      method: 'POST',
+      body: { email: $('#pw-email').value, mot_de_passe: $('#pw-pass').value }
+    });
+    state.token = data.token;
+    state.user = data.utilisateur;
+    saveSession();
+    $('#pw-pass').value = '';
+    $('#dlg-login').close();
+    notify(`Bienvenue, ${state.user.nom} !`, 'success');
+    updateUI();
+  } catch(err) {
+    errDiv.className = 'alert alert-error';
+    errDiv.textContent = '❌ ' + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Se connecter';
+  }
+};
+
+// ── Options régions ────────────────────────────────────────────────────────────
+const ropts = (all = false) =>
+  (all ? '<option value="">Toutes les régions</option>' : '') +
+  state.regions.map(r => `<option value="${r.id}">${esc(r.nom)}</option>`).join('');
+
+// ── Barres de stats ────────────────────────────────────────────────────────────
+function bars(list, ocre = false) {
+  if (!list?.length) return '<p class="empty">Aucune donnée pour ce mois.</p>';
+  const max = Math.max(1, ...list.map(x => x.total));
+  return `<div class="bar-list">${list.map(x => `
+    <div class="bar ${ocre ? 'ocre' : ''}">
+      <span>${esc(x.nom)}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${x.total/max*100}%"></div></div>
+      <b>${x.total}</b>
+    </div>`).join('')}</div>`;
+}
+
+// ── Render principal ───────────────────────────────────────────────────────────
+async function render() {
+  try {
+    if (!state.regions.length) state.regions = await api('/regions');
+    const views = { tb: renderDashboard, liste: renderListe, saisie: renderSaisie, utilisateurs: renderUtilisateurs };
+    await views[curView()]?.();
+  } catch(e) { notify(e.message, 'error'); }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// VUE 1 — TABLEAU DE BORD
+// ════════════════════════════════════════════════════════════════════════════════
+async function renderDashboard() {
+  const el = $('#tb');
+  el.innerHTML = loading('Chargement du tableau de bord...');
+
+  const m = el.dataset.m || mois0;
+  const r = el.dataset.r || '';
+
+  try {
+    const s = await api(`/stats?mois=${m}${r ? '&region='+r : ''}`);
+    const rapports_total = s.rapports_total ?? s.regions?.reduce((a, r) => a + r.rapports, 0) ?? 0;
+
+    el.innerHTML = `
+      <div class="row" style="margin-bottom:16px">
+        <label class="field"><span>Mois</span>
+          <input type="month" value="${m}" id="dm" max="${mois0}">
+        </label>
+        <label class="field"><span>Région</span>
+          <select id="dr"><option value="">Toutes les régions</option>${state.regions.map(r=>`<option value="${r.id}" ${el.dataset.r==r.id?'selected':''}>${esc(r.nom)}</option>`).join('')}</select>
+        </label>
+        ${isSuperviseur() ? `<a href="/api/export/stats?mois=${m}" class="btn btn-secondary btn-sm ml-auto" style="text-decoration:none">⬇️ Export CSV national</a>` : ''}
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-num">${s.csi_total}</div>
+          <div class="stat-label">CSI enregistrés</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" style="color:var(--ocre)">${rapports_total}</div>
+          <div class="stat-label">Rapports reçus · ${m}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" style="color:var(--ocre)">${s.csi_total > 0 ? Math.round(rapports_total/s.csi_total*100) : 0}%</div>
+          <div class="stat-label">Taux de couverture</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+        <div class="card">
+          <h2>Consultations</h2>${bars(s.consultations)}
+        </div>
+        <div class="card">
+          <h2>Doses vaccinales</h2>${bars(s.vaccinations)}
+        </div>
+      </div>
+      <div class="card mt">
+        <h2>Ruptures de stock (jours)</h2>${bars(s.ruptures, true)}
+      </div>
+
+      <h2>Couverture par région</h2>
+      <div class="tw">
+        <table>
+          <tr><th>Région</th><th>CSI actifs</th><th>Rapports reçus</th><th>Couverture</th></tr>
+          ${s.regions.map(r => {
+            const pct = r.csi > 0 ? Math.round(r.rapports/r.csi*100) : 0;
+            const color = pct >= 80 ? 'var(--vert)' : pct >= 50 ? 'var(--ocre)' : 'var(--danger)';
+            return `<tr>
+              <td>${esc(r.nom)}</td>
+              <td>${r.csi}</td>
+              <td>${r.rapports}</td>
+              <td style="color:${color};font-weight:600">${pct}% <span style="font-weight:400;color:var(--mut)">(${r.rapports}/${r.csi})</span></td>
+            </tr>`;
+          }).join('')}
+        </table>
+      </div>
+    `;
+
+    $('#dm').onchange = e => { el.dataset.m = e.target.value; renderDashboard(); };
+    $('#dr').onchange = e => { el.dataset.r = e.target.value; renderDashboard(); };
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// VUE 2 — LISTE DES CSI
+// ════════════════════════════════════════════════════════════════════════════════
+let listePage = 1;
+
+async function renderListe() {
+  const el = $('#liste');
+  el.innerHTML = `
+    <div class="row">
+      <label class="field"><span>Région</span>
+        <select id="fr">${ropts(true)}</select>
+      </label>
+      <label class="field"><span>Recherche</span>
+        <input id="fq" placeholder="Nom du CSI ou commune" style="min-width:200px">
+      </label>
+      <button class="btn btn-ghost btn-sm" id="reset-filter">Réinitialiser</button>
+    </div>
+    <div id="lt">${loading()}</div>
+    <div id="lt-pagination"></div>
+    ${isAdmin() || isSuperviseur() ? '<div id="nf"></div>' : ''}
+  `;
+
+  $('#fr').onchange = () => { listePage = 1; loadListe(); };
+  $('#fq').oninput  = () => { listePage = 1; loadListe(); };
+  $('#reset-filter').onclick = () => { $('#fr').value = ''; $('#fq').value = ''; listePage = 1; loadListe(); };
+
+  await loadListe();
+
+  if (isSuperviseur()) renderAjoutCSI();
+}
+
+async function loadListe() {
+  const lt  = $('#lt');
+  const pag = $('#lt-pagination');
+  if (!lt) return;
+
+  lt.innerHTML = loading();
+  const reg = $('#fr')?.value || '';
+  const q   = $('#fq')?.value || '';
+
+  try {
+    const data = await api(`/csi?region=${reg}&q=${encodeURIComponent(q)}&page=${listePage}&limit=50`);
+    const { csis, total, limit } = data;
+
+    if (!csis.length) {
+      lt.innerHTML = `<p class="empty">Aucun CSI trouvé.${isSuperviseur() ? ' Vous pouvez en ajouter ci-dessous.' : ''}</p>`;
+      if (pag) pag.innerHTML = '';
+      return;
+    }
+
+    lt.innerHTML = `
+      <p class="text-muted" style="font-size:.82rem;margin-bottom:8px">${total} CSI trouvé${total>1?'s':''}</p>
+      <div class="tw">
+        <table>
+          <tr><th>CSI</th><th>Commune</th><th>Région</th><th>Services</th>${isAdmin()?'<th>Actions</th>':''}</tr>
+          ${csis.map(c => `
+            <tr>
+              <td><strong>${esc(c.nom)}</strong></td>
+              <td>${esc(c.commune)} <span class="text-muted">(${c.type})</span></td>
+              <td>${esc(c.region)}</td>
+              <td style="font-size:.8rem">${(c.services||[]).map(s=>`<span style="background:var(--vert-clair);color:var(--vert);padding:1px 7px;border-radius:12px;margin:2px;display:inline-block">${esc(s)}</span>`).join('')}</td>
+              ${isAdmin() ? `<td><button class="btn btn-ghost btn-sm" onclick="desactiverCSI(${c.id},'${esc(c.nom)}')">Désactiver</button></td>` : ''}
+            </tr>`).join('')}
+        </table>
+      </div>`;
+
+    // Pagination
+    if (pag && total > limit) {
+      const pages = Math.ceil(total / limit);
+      pag.innerHTML = `
+        <div class="pagination">
+          <button ${listePage <= 1 ? 'disabled' : ''} onclick="listePage=${listePage-1};loadListe()">← Préc.</button>
+          ${Array.from({length: Math.min(pages, 7)}, (_, i) => {
+            const p = i + 1;
+            return `<button class="${p===listePage?'active':''}" onclick="listePage=${p};loadListe()">${p}</button>`;
+          }).join('')}
+          <button ${listePage >= pages ? 'disabled' : ''} onclick="listePage=${listePage+1};loadListe()">Suiv. →</button>
+          <span>Page ${listePage}/${pages}</span>
+        </div>`;
+    } else if (pag) pag.innerHTML = '';
+
+  } catch(e) {
+    lt.innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`;
+  }
+}
+
+async function desactiverCSI(id, nom) {
+  if (!await confirm('Désactiver le CSI', `Voulez-vous désactiver "${nom}" ? Il n'apparaîtra plus dans la liste.`)) return;
+  try {
+    await api(`/csi/${id}`, { method: 'DELETE' });
+    notify(`CSI "${nom}" désactivé.`, 'success');
+    loadListe();
+  } catch(e) { notify(e.message, 'error'); }
+}
+
+function renderAjoutCSI() {
+  const nf = $('#nf');
+  if (!nf) return;
+  nf.innerHTML = `
+    <div class="card mt">
+      <h2>Ajouter un CSI</h2>
+      <form id="af">
+        <div class="row">
+          <label class="field"><span>Nom du CSI *</span><input name="nom" required placeholder="ex: CSI de Dosso Centre"></label>
+          <label class="field"><span>Région *</span><select name="region_id" required>${ropts()}</select></label>
+          <label class="field"><span>Commune *</span><input name="commune" required placeholder="ex: Dosso"></label>
+          <label class="field"><span>Type</span>
+            <select name="type"><option value="rurale">Rurale</option><option value="urbaine">Urbaine</option></select>
+          </label>
+        </div>
+        <div class="row">
+          <label class="field"><span>Latitude</span><input name="latitude" type="number" step="any" placeholder="ex: 13.05"></label>
+          <label class="field"><span>Longitude</span><input name="longitude" type="number" step="any" placeholder="ex: 3.19"></label>
+        </div>
+        <div class="row" style="margin-bottom:16px">
+          ${SERVICES.map(s => `<label style="display:flex;align-items:center;gap:6px;font-size:.88rem">
+            <input type="checkbox" name="sv" value="${s}"> ${s}</label>`).join('')}
+        </div>
+        <button class="btn btn-primary" type="submit" id="save-csi-btn">Enregistrer le CSI</button>
+      </form>
+    </div>`;
+
+  $('#af').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $('#save-csi-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Enregistrement...';
+    const f = new FormData(e.target);
+    const b = Object.fromEntries(f);
+    b.services = f.getAll('sv');
+    delete b.sv;
+    try {
+      await api('/csi', { method: 'POST', body: b });
+      notify('CSI enregistré avec succès.', 'success');
+      e.target.reset();
+      loadListe();
+    } catch(err) {
+      notify(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Enregistrer le CSI';
+    }
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// VUE 3 — SAISIE MENSUELLE
+// ════════════════════════════════════════════════════════════════════════════════
+async function renderSaisie() {
+  const el = $('#saisie');
+  if (!isLogged()) {
+    el.innerHTML = `
+      <div class="alert alert-warn" style="margin-top:16px">
+        ⚠️ Veuillez vous connecter pour saisir les données d'un CSI.
+        <button class="btn btn-secondary btn-sm" onclick="$('#dlg-login').showModal()" style="margin-left:12px">Se connecter</button>
+      </div>`;
+    return;
+  }
+
+  const inp = k => `<input type="number" min="0" data-k="${k}" style="width:80px">`;
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="row">
+        <label class="field"><span>Région</span><select id="sr">${ropts()}</select></label>
+        <label class="field"><span>CSI</span><select id="sc" style="min-width:200px"><option>Chargement...</option></select></label>
+        <label class="field"><span>Mois</span><input type="month" id="sm" value="${mois0}" max="${mois0}"></label>
+        <button class="btn btn-ghost btn-sm ml-auto" id="refresh-rapport" title="Recharger">🔄 Actualiser</button>
+      </div>
+    </div>
+
+    <div id="rapport-status"></div>
+
+    <form id="sf">
+      <div class="card">
+        <h2>Consultations</h2>
+        <div class="tw">
+          <table>
+            <tr><th>Motif</th>${COLS.map(c=>`<th>${c[2]}</th>`).join('')}</tr>
+            ${MOTIFS.map(m=>`<tr><td>${m}</td>${COLS.map(c=>`<td>${inp(['c',m,c[0],c[1]].join('|'))}</td>`).join('')}</tr>`).join('')}
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Vaccinations <span class="text-muted">(doses données)</span></h2>
+        <div class="tw">
+          <table>
+            <tr><th>Vaccin</th><th>Doses</th></tr>
+            ${VACCINS.map(v=>`<tr><td>${v}</td><td>${inp('v|'+v)}</td></tr>`).join('')}
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Médicaments & stocks</h2>
+        <div class="tw">
+          <table>
+            <tr><th>Produit</th><th>Stock début</th><th>Entrées</th><th>Sorties</th><th>Stock fin</th><th>Jours rupture</th></tr>
+            ${PRODUITS.map(p=>`<tr><td>${p}</td>${['stock_debut','entrees','sorties','stock_fin','jours_rupture'].map(f=>`<td>${inp('m|'+p+'|'+f)}</td>`).join('')}</tr>`).join('')}
+          </table>
+        </div>
+      </div>
+
+      <div class="flex" style="margin-top:8px">
+        <button class="btn btn-primary" type="submit" id="save-rapport-btn">💾 Enregistrer le rapport</button>
+        <div id="export-rapport-btn"></div>
+      </div>
+    </form>
+  `;
+
+  // Si l'agent est lié à un CSI spécifique, pré-sélectionner sa région
+  if (state.user?.csi_id) {
+    // On va charger le CSI de l'agent directement
+  }
+
+  const fillCsi = async () => {
+    $('#sc').innerHTML = '<option>Chargement...</option>';
+    try {
+      const data = await api(`/csi?region=${$('#sr').value}&limit=200`);
+      const csis = data.csis || data;
+      $('#sc').innerHTML = csis.length
+        ? csis.map(c => `<option value="${c.id}" ${state.user?.csi_id==c.id?'selected':''}>${esc(c.nom)} — ${esc(c.commune)}</option>`).join('')
+        : '<option value="">Aucun CSI dans cette région</option>';
+      await loadRapport();
+    } catch(e) { notify(e.message, 'error'); }
+  };
+
+  const loadRapport = async () => {
+    $$('#sf input[type=number]').forEach(i => i.value = '');
+    $('#rapport-status').innerHTML = '';
+    if (!$('#sc').value) return;
+
+    const csiId = $('#sc').value;
+    const mois  = $('#sm').value;
+
+    // Bouton export
+    $('#export-rapport-btn').innerHTML = `
+      <a href="/api/export/rapport?csi_id=${csiId}&mois=${mois}"
+         class="btn btn-secondary btn-sm" style="text-decoration:none">⬇️ Export CSV</a>`;
+
+    try {
+      const d = await api(`/rapport?csi_id=${csiId}&mois=${mois}`);
+      if (!d) {
+        $('#rapport-status').innerHTML = '<div class="alert alert-info">ℹ️ Aucun rapport pour ce mois. Vous pouvez en créer un.</div>';
+        return;
+      }
+      $('#rapport-status').innerHTML = '<div class="alert alert-warn">✏️ Rapport existant chargé. Vous pouvez le corriger et ré-enregistrer.</div>';
+      const set = (k, v) => { const i = $(`[data-k="${k}"]`); if (i) i.value = v; };
+      d.consultations.forEach(c => set(['c',c.motif,c.tranche,c.sexe].join('|'), c.nombre));
+      d.vaccinations.forEach(v => set('v|'+v.vaccin, v.doses));
+      d.medicaments.forEach(m => ['stock_debut','entrees','sorties','stock_fin','jours_rupture'].forEach(f => set(`m|${m.produit}|${f}`, m[f])));
+    } catch(e) { notify(e.message, 'error'); }
+  };
+
+  $('#sr').onchange = fillCsi;
+  $('#sc').onchange = loadRapport;
+  $('#sm').onchange = loadRapport;
+  $('#refresh-rapport').onclick = loadRapport;
+
+  $('#sf').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $('#save-rapport-btn');
+
+    if (!$('#sc').value) return notify('Choisissez un CSI.', 'error');
+
+    // Si rapport existant, demander confirmation
+    const hasExisting = $('#rapport-status').querySelector('.alert-warn');
+    if (hasExisting) {
+      if (!await confirm('Modifier le rapport', 'Un rapport existe déjà pour ce mois. Voulez-vous le remplacer ?')) return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Enregistrement...';
+
+    const b = {
+      csi_id: +$('#sc').value,
+      mois: $('#sm').value,
+      consultations: [], vaccinations: [], medicaments: {}
+    };
+
+    const med = {};
+    $$('#sf input[type=number]').forEach(i => {
+      const p = i.dataset.k.split('|');
+      const v = +i.value || 0;
+      if (p[0] === 'c') b.consultations.push({ motif:p[1], tranche:p[2], sexe:p[3], nombre:v });
+      else if (p[0] === 'v') b.vaccinations.push({ vaccin:p[1], doses:v });
+      else (med[p[1]] ??= { produit:p[1] })[p[2]] = v;
+    });
+    b.medicaments = Object.values(med);
+
+    try {
+      await api('/rapport', { method: 'PUT', body: b });
+      notify('Rapport enregistré avec succès !', 'success');
+      await loadRapport();
+    } catch(err) {
+      notify(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '💾 Enregistrer le rapport';
+    }
+  };
+
+  await fillCsi();
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// VUE 4 — GESTION DES UTILISATEURS (Admin uniquement)
+// ════════════════════════════════════════════════════════════════════════════════
+async function renderUtilisateurs() {
+  const el = $('#utilisateurs');
+  if (!isAdmin()) {
+    el.innerHTML = '<div class="alert alert-error">❌ Accès réservé aux administrateurs.</div>';
+    return;
+  }
+
+  el.innerHTML = loading('Chargement des utilisateurs...');
+
+  try {
+    const users = await api('/utilisateurs');
+
+    el.innerHTML = `
+      <div class="flex" style="margin-bottom:16px">
+        <h2 style="margin:0">Gestion des utilisateurs</h2>
+        <button class="btn btn-primary btn-sm ml-auto" id="show-add-user">+ Ajouter un utilisateur</button>
+      </div>
+
+      <div class="tw">
+        <table>
+          <tr><th>Nom</th><th>Email</th><th>Rôle</th><th>CSI / Région</th><th>Dernière connexion</th><th>Statut</th><th>Actions</th></tr>
+          ${users.map(u => {
+            const badges = { admin: 'badge-admin', superviseur: 'badge-superviseur', agent: 'badge-agent' };
+            const affectation = u.csi_nom ? u.csi_nom : (u.region_nom ? u.region_nom : '—');
+            const connex = u.derniere_connexion ? new Date(u.derniere_connexion).toLocaleDateString('fr-FR') : 'Jamais';
+            return `<tr>
+              <td><strong>${esc(u.nom)}</strong></td>
+              <td>${esc(u.email)}</td>
+              <td><span class="badge ${badges[u.role]}">${u.role}</span></td>
+              <td>${esc(affectation)}</td>
+              <td>${connex}</td>
+              <td>${u.actif ? '<span class="status-ok">● Actif</span>' : '<span class="status-nok">● Inactif</span>'}</td>
+              <td style="white-space:nowrap">
+                <button class="btn btn-ghost btn-sm" onclick="editUser(${u.id})">✏️</button>
+                ${u.actif && u.id !== state.user?.id
+                  ? `<button class="btn btn-ghost btn-sm" onclick="deactivateUser(${u.id},'${esc(u.nom)}')">🚫</button>`
+                  : ''}
+              </td>
+            </tr>`;
+          }).join('')}
+        </table>
+      </div>
+
+      <div id="user-form-container"></div>
+    `;
+
+    $('#show-add-user').onclick = () => showUserForm(null);
+  } catch(e) {
+    el.innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`;
+  }
+}
+
+function showUserForm(userId) {
+  const container = $('#user-form-container');
+  container.innerHTML = `
+    <div class="card mt">
+      <h2>${userId ? 'Modifier l\'utilisateur' : 'Ajouter un utilisateur'}</h2>
+      <form id="user-form">
+        <div class="row">
+          <label class="field"><span>Nom complet *</span><input name="nom" required placeholder="Prénom Nom"></label>
+          <label class="field"><span>Email *</span><input name="email" type="email" required></label>
+          <label class="field"><span>${userId ? 'Nouveau mot de passe' : 'Mot de passe *'}</span>
+            <input name="mot_de_passe" type="password" ${userId ? '' : 'required'} minlength="8" placeholder="Min. 8 caractères">
+          </label>
+        </div>
+        <div class="row">
+          <label class="field"><span>Rôle *</span>
+            <select name="role" id="form-role">
+              <option value="agent">Agent (accès à un CSI)</option>
+              <option value="superviseur">Superviseur régional</option>
+              <option value="admin">Administrateur</option>
+            </select>
+          </label>
+          <label class="field" id="csi-field"><span>CSI affecté</span>
+            <select name="csi_id"><option value="">— Sélectionner —</option></select>
+          </label>
+          <label class="field" id="region-field" class="hid"><span>Région</span>
+            <select name="region_id"><option value="">— Toutes —</option>${ropts()}</select>
+          </label>
+        </div>
+        <div class="flex">
+          <button class="btn btn-primary" type="submit" id="save-user-btn">${userId ? 'Mettre à jour' : 'Créer l\'utilisateur'}</button>
+          <button class="btn btn-secondary" type="button" onclick="$('#user-form-container').innerHTML=''">Annuler</button>
+        </div>
+      </form>
+    </div>`;
+
+  // Charger les CSI pour le select
+  api('/csi?limit=200').then(data => {
+    const csis = data.csis || data;
+    const sel = document.querySelector('[name="csi_id"]');
+    if (sel) sel.innerHTML = '<option value="">— Sélectionner —</option>' +
+      csis.map(c => `<option value="${c.id}">${esc(c.nom)} — ${esc(c.commune)} (${esc(c.region)})</option>`).join('');
+  });
+
+  // Afficher/masquer champs selon le rôle
+  const roleSelect = $('#form-role');
+  const toggleFields = () => {
+    const r = roleSelect.value;
+    document.getElementById('csi-field').style.display = r === 'agent' ? '' : 'none';
+    document.getElementById('region-field').style.display = r === 'superviseur' ? '' : 'none';
+  };
+  roleSelect.onchange = toggleFields;
+  toggleFields();
+
+  $('#user-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $('#save-user-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div>';
+    const f = new FormData(e.target);
+    const body = Object.fromEntries(f);
+    if (!body.mot_de_passe) delete body.mot_de_passe;
+    if (!body.csi_id) delete body.csi_id;
+    if (!body.region_id) delete body.region_id;
+
+    try {
+      if (userId) await api(`/utilisateurs/${userId}`, { method: 'PUT', body });
+      else await api('/utilisateurs', { method: 'POST', body });
+      notify(userId ? 'Utilisateur mis à jour.' : 'Utilisateur créé.', 'success');
+      container.innerHTML = '';
+      renderUtilisateurs();
+    } catch(err) {
+      notify(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = userId ? 'Mettre à jour' : 'Créer l\'utilisateur';
+    }
+  };
+}
+
+async function editUser(id) {
+  showUserForm(id);
+}
+
+async function deactivateUser(id, nom) {
+  if (!await confirm('Désactiver l\'utilisateur', `Voulez-vous désactiver le compte de "${nom}" ?`)) return;
+  try {
+    await api(`/utilisateurs/${id}`, { method: 'DELETE' });
+    notify(`Compte de "${nom}" désactivé.`, 'success');
+    renderUtilisateurs();
+  } catch(e) { notify(e.message, 'error'); }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// HORS-LIGNE
+// ════════════════════════════════════════════════════════════════════════════════
+window.addEventListener('online',  () => { $('#offline-banner').style.display = 'none'; });
+window.addEventListener('offline', () => { $('#offline-banner').style.display = 'block'; });
+if (!navigator.onLine) $('#offline-banner').style.display = 'block';
+
+// ════════════════════════════════════════════════════════════════════════════════
+// INITIALISATION
+// ════════════════════════════════════════════════════════════════════════════════
+updateUI();
+</script>
+</body>
+</html>
