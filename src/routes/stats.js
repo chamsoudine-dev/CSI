@@ -16,8 +16,12 @@ router.get('/stats', wrap(async (req, res) => {
   const { region } = req.query;
   const q = (sql, params = [m]) => pool.query(sql, params).then(x => x.rows);
 
-  const J = 'JOIN rapports r ON r.id = x.rapport_id WHERE r.mois = $1';
-  const regionFilter = region ? ' AND g.id = $2' : '';
+  const J = `
+    JOIN rapports r ON r.id = x.rapport_id
+    JOIN csi s ON s.id = r.csi_id
+    JOIN communes c ON c.id = s.commune_id
+    JOIN regions g ON g.id = c.region_id
+    WHERE r.mois = $1 ${region ? 'AND g.id = $2' : ''}`;
 
   // Statistiques globales ou par région
   const baseParams = region ? [m, region] : [m];
@@ -44,26 +48,14 @@ router.get('/stats', wrap(async (req, res) => {
 
       q(`SELECT motif AS nom, sum(nombre)::int AS total
          FROM consultations x ${J}
-         JOIN csi s ON s.id = r.csi_id
-         JOIN communes c ON c.id = s.commune_id
-         JOIN regions g ON g.id = c.region_id
-         ${region ? 'AND g.id = $2' : ''}
          GROUP BY motif ORDER BY 2 DESC`, baseParams),
 
       q(`SELECT vaccin AS nom, sum(doses)::int AS total
          FROM vaccinations x ${J}
-         JOIN csi s ON s.id = r.csi_id
-         JOIN communes c ON c.id = s.commune_id
-         JOIN regions g ON g.id = c.region_id
-         ${region ? 'AND g.id = $2' : ''}
          GROUP BY vaccin ORDER BY 2 DESC`, baseParams),
 
       q(`SELECT produit AS nom, sum(jours_rupture)::int AS total
          FROM medicaments x ${J}
-         JOIN csi s ON s.id = r.csi_id
-         JOIN communes c ON c.id = s.commune_id
-         JOIN regions g ON g.id = c.region_id
-         ${region ? 'AND g.id = $2' : ''}
          GROUP BY produit HAVING sum(jours_rupture) > 0 ORDER BY 2 DESC`, baseParams),
 
       q(`SELECT g.nom, count(DISTINCT s.id)::int AS csi, count(DISTINCT r.id)::int AS rapports
