@@ -181,6 +181,7 @@ dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(2px)}
 <nav id="nav">
   <button data-v="tb" class="on">📊 Tableau de bord</button>
   <button data-v="liste">📋 Liste des CSI</button>
+  <button data-v="carte">🗺️ Carte des CSI</button>
   <button data-v="saisie">✏️ Saisie mensuelle</button>
   <button data-v="utilisateurs" class="hid" id="nav-users">👥 Utilisateurs</button>
 </nav>
@@ -188,6 +189,7 @@ dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(2px)}
 <main>
   <section id="tb"></section>
   <section id="liste" class="hid"></section>
+  <section id="carte" class="hid"></section>
   <section id="saisie" class="hid"></section>
   <section id="utilisateurs" class="hid"></section>
   <div id="msg-zone"></div>
@@ -411,7 +413,7 @@ function bars(list, ocre = false) {
 async function render() {
   try {
     if (!state.regions.length) state.regions = await api('/regions');
-    const views = { tb: renderDashboard, liste: renderListe, saisie: renderSaisie, utilisateurs: renderUtilisateurs };
+    const views = { tb: renderDashboard, liste: renderListe, carte: renderCarte, saisie: renderSaisie, utilisateurs: renderUtilisateurs };
     await views[curView()]?.();
   } catch(e) { notify(e.message, 'error'); }
 }
@@ -484,6 +486,33 @@ async function renderDashboard() {
           }).join('')}
         </table>
       </div>
+
+      ${s.evolution && s.evolution.length > 0 ? `
+      <h2>📈 Tendance sur les 6 derniers mois</h2>
+      <div class="tw">
+        <table>
+          <tr><th>Mois</th><th>Rapports reçus</th><th>Consultations totales</th><th>Activité</th></tr>
+          ${(() => {
+            const maxCons = Math.max(1, ...s.evolution.map(ev => ev.consultations_total || 0));
+            return s.evolution.map(ev => {
+              const cTotal = ev.consultations_total || 0;
+              const barWidth = Math.round((cTotal / maxCons) * 100);
+              return `<tr>
+                <td><strong>${esc(ev.mois)}</strong></td>
+                <td><span class="badge badge-superviseur">${ev.rapports} rapport${ev.rapports > 1 ? 's' : ''}</span></td>
+                <td><b>${cTotal.toLocaleString('fr-FR')}</b></td>
+                <td>
+                  <div class="bar-track" style="height:10px;width:140px;display:inline-block;vertical-align:middle;margin-right:8px">
+                    <div class="bar-fill" style="width:${barWidth}%"></div>
+                  </div>
+                  <span style="font-size:.78rem;color:var(--mut)">${barWidth}%</span>
+                </td>
+              </tr>`;
+            }).join('');
+          })()}
+        </table>
+      </div>
+      ` : ''}
     `;
 
     $('#dm').onchange = e => { el.dataset.m = e.target.value; renderDashboard(); };
@@ -639,6 +668,269 @@ function renderAjoutCSI() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
+// VUE 2b — CARTE DES CSI (OpenStreetMap)
+// ════════════════════════════════════════════════════════════════════════════════
+const REGION_COORDS = {
+  1: { nom: 'Agadez', lat: 16.9741, lon: 7.9897 },
+  2: { nom: 'Diffa', lat: 13.3154, lon: 12.6113 },
+  3: { nom: 'Dosso', lat: 13.0490, lon: 3.1937 },
+  4: { nom: 'Maradi', lat: 13.5000, lon: 7.1000 },
+  5: { nom: 'Niamey', lat: 13.5116, lon: 2.1254 },
+  6: { nom: 'Tahoua', lat: 14.8888, lon: 5.2692 },
+  7: { nom: 'Tillabéri', lat: 14.2071, lon: 1.4542 },
+  8: { nom: 'Zinder', lat: 13.8072, lon: 8.9883 }
+};
+
+let mapState = { zoom: 6, lat: 15.0, lon: 6.5, selectedCsi: null };
+
+async function renderCarte() {
+  const el = $('#carte');
+  el.innerHTML = `
+    <div class="row">
+      <label class="field"><span>Filtrer par région</span>
+        <select id="map-region">${ropts(true)}</select>
+      </label>
+      <label class="field"><span>Rechercher un CSI</span>
+        <input id="map-search" placeholder="Nom ou commune..." style="min-width:200px">
+      </label>
+      <button class="btn btn-secondary btn-sm" id="map-reset">Recentrer Niger</button>
+    </div>
+    <div id="map-loading">${loading('Chargement des CSI géolocalisés...')}</div>
+    <div id="map-container" style="position:relative;height:520px;border-radius:10px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:#e5e3df;display:none">
+      <div id="map-tiles" style="position:absolute;inset:0;overflow:hidden;user-select:none"></div>
+      <div id="map-markers" style="position:absolute;inset:0;pointer-events:none"></div>
+      <div id="map-controls" style="position:absolute;top:12px;left:12px;display:flex;flex-direction:column;gap:4px;z-index:20">
+        <button class="btn btn-secondary btn-sm" id="zoom-in" style="font-weight:700;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;background:#fff">+</button>
+        <button class="btn btn-secondary btn-sm" id="zoom-out" style="font-weight:700;width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;background:#fff">−</button>
+      </div>
+      <div id="map-info-popup" style="position:absolute;bottom:16px;left:16px;right:16px;max-width:400px;z-index:30;display:none"></div>
+      <div style="position:absolute;bottom:4px;right:8px;font-size:10px;background:rgba(255,255,255,.8);padding:2px 6px;border-radius:4px;color:#555">
+        © <a href="https://www.openstreetmap.org/copyright" target="_blank" style="color:#555">OpenStreetMap</a> contributors
+      </div>
+    </div>
+    <div id="map-stats" style="margin-top:10px;font-size:.85rem;color:var(--mut)"></div>
+  `;
+
+  try {
+    const data = await api('/csi?limit=200');
+    const csis = data.csis || [];
+    $('#map-loading').style.display = 'none';
+    $('#map-container').style.display = 'block';
+
+    let currentCsis = csis;
+
+    function getCoords(c) {
+      if (c.latitude && c.longitude) return { lat: parseFloat(c.latitude), lon: parseFloat(c.longitude), exact: true };
+      const reg = REGION_COORDS[c.region_id];
+      if (reg) {
+        // Décalage pseudo-aléatoire stable pour séparer les CSI d'une même région
+        const hash = (c.id * 9301 + 49297) % 233280;
+        const offsetLat = ((hash % 100) - 50) * 0.005;
+        const offsetLon = (((hash * 7) % 100) - 50) * 0.005;
+        return { lat: reg.lat + offsetLat, lon: reg.lon + offsetLon, exact: false };
+      }
+      return null;
+    }
+
+    function latLonToPixel(lat, lon, zoom) {
+      const n = Math.pow(2, zoom);
+      const latRad = (lat * Math.PI) / 180;
+      const x = ((lon + 180) / 360) * n * 256;
+      const y = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n * 256;
+      return { x, y };
+    }
+
+    function updateMap() {
+      const container = $('#map-container');
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      const center = latLonToPixel(mapState.lat, mapState.lon, mapState.zoom);
+
+      // Rendu des tuiles OpenStreetMap
+      const tilesDiv = $('#map-tiles');
+      tilesDiv.innerHTML = '';
+      const startTileX = Math.floor((center.x - w / 2) / 256);
+      const endTileX = Math.floor((center.x + w / 2) / 256);
+      const startTileY = Math.floor((center.y - h / 2) / 256);
+      const endTileY = Math.floor((center.y + h / 2) / 256);
+
+      const maxTiles = Math.pow(2, mapState.zoom);
+      for (let tx = startTileX; tx <= endTileX; tx++) {
+        for (let ty = startTileY; ty <= endTileY; ty++) {
+          if (ty < 0 || ty >= maxTiles) continue;
+          const wrappedX = ((tx % maxTiles) + maxTiles) % maxTiles;
+          const img = document.createElement('img');
+          img.src = `https://tile.openstreetmap.org/${mapState.zoom}/${wrappedX}/${ty}.png`;
+          img.style.position = 'absolute';
+          img.style.left = `${tx * 256 - (center.x - w / 2)}px`;
+          img.style.top = `${ty * 256 - (center.y - h / 2)}px`;
+          img.style.width = '256px';
+          img.style.height = '256px';
+          img.style.pointerEvents = 'none';
+          tilesDiv.appendChild(img);
+        }
+      }
+
+      // Rendu des marqueurs
+      const markersDiv = $('#map-markers');
+      markersDiv.innerHTML = '';
+
+      currentCsis.forEach(c => {
+        const coords = getCoords(c);
+        if (!coords) return;
+        const pos = latLonToPixel(coords.lat, coords.lon, mapState.zoom);
+        const px = pos.x - (center.x - w / 2);
+        const py = pos.y - (center.y - h / 2);
+
+        if (px >= -20 && px <= w + 20 && py >= -20 && py <= h + 20) {
+          const marker = document.createElement('div');
+          marker.style.position = 'absolute';
+          marker.style.left = `${px - 14}px`;
+          marker.style.top = `${py - 28}px`;
+          marker.style.width = '28px';
+          marker.style.height = '28px';
+          marker.style.cursor = 'pointer';
+          marker.style.pointerEvents = 'auto';
+          marker.style.transform = 'translate3d(0,0,0)';
+          marker.title = `${c.nom} (${c.commune})`;
+          marker.innerHTML = `
+            <svg viewBox="0 0 24 24" width="28" height="28" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))">
+              <path fill="${coords.exact ? '#1b5e3b' : '#b8741a'}" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+              <circle cx="12" cy="9" r="3" fill="#ffffff"/>
+            </svg>`;
+
+          marker.onclick = (e) => {
+            e.stopPropagation();
+            showPopup(c, coords);
+          };
+          markersDiv.appendChild(marker);
+        }
+      });
+
+      const withGps = csis.filter(c => c.latitude && c.longitude).length;
+      $('#map-stats').innerHTML = `📍 <b>${currentCsis.length}</b> CSI affiché(s) · <b>${withGps}</b> avec coordonnées GPS précises · Centre : ${mapState.lat.toFixed(2)}°N, ${mapState.lon.toFixed(2)}°E · Zoom : ${mapState.zoom}`;
+    }
+
+    function showPopup(c, coords) {
+      const popup = $('#map-info-popup');
+      popup.style.display = 'block';
+      popup.innerHTML = `
+        <div class="card" style="margin:0;box-shadow:0 6px 20px rgba(0,0,0,.2);border:2px solid var(--vert)">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <strong>${esc(c.nom)}</strong>
+            <button class="btn btn-ghost btn-sm" onclick="$('#map-info-popup').style.display='none'" style="padding:0 4px">✕</button>
+          </div>
+          <div style="font-size:.82rem;color:var(--mut);margin:4px 0">
+            📍 Commune : <b>${esc(c.commune)}</b> (${esc(c.type)}) · Région : <b>${esc(c.region)}</b>
+          </div>
+          ${coords.exact ? `<div style="font-size:.78rem;color:var(--vert)">✅ Coordonnées GPS : ${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}</div>` : `<div style="font-size:.78rem;color:var(--ocre)">ℹ️ Localisé au niveau régional</div>`}
+          <div style="margin:8px 0;display:flex;flex-wrap:wrap;gap:4px">
+            ${(c.services || []).map(s => `<span style="background:var(--vert-clair);color:var(--vert);font-size:.75rem;padding:1px 6px;border-radius:10px">${esc(s)}</span>`).join('')}
+          </div>
+          <button class="btn btn-primary btn-sm" style="width:100%;margin-top:6px" onclick="goToSaisieForCsi(${c.id}, ${c.region_id})">✏️ Accéder aux rapports de ce CSI</button>
+        </div>`;
+    }
+
+    // Gestion du drag (déplacement de la carte à la souris / tactile)
+    let isDragging = false;
+    let startX, startY;
+    const container = $('#map-container');
+
+    container.onmousedown = (e) => {
+      if (e.target.closest('#map-controls') || e.target.closest('#map-info-popup')) return;
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      container.style.cursor = 'grabbing';
+    };
+
+    window.onmousemove = (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      startX = e.clientX;
+      startY = e.clientY;
+
+      const center = latLonToPixel(mapState.lat, mapState.lon, mapState.zoom);
+      const newX = center.x - dx;
+      const newY = center.y - dy;
+      const n = Math.pow(2, mapState.zoom);
+      mapState.lon = (newX / (n * 256)) * 360 - 180;
+      const latRad = Math.atan(Math.sinh(Math.PI * (1 - (2 * newY) / (n * 256))));
+      mapState.lat = (latRad * 180) / Math.PI;
+
+      updateMap();
+    };
+
+    window.onmouseup = () => {
+      if (isDragging) {
+        isDragging = false;
+        container.style.cursor = 'default';
+      }
+    };
+
+    // Zoom
+    $('#zoom-in').onclick = () => {
+      if (mapState.zoom < 12) { mapState.zoom++; updateMap(); }
+    };
+    $('#zoom-out').onclick = () => {
+      if (mapState.zoom > 5) { mapState.zoom--; updateMap(); }
+    };
+    $('#map-reset').onclick = () => {
+      mapState = { zoom: 6, lat: 15.0, lon: 6.5, selectedCsi: null };
+      $('#map-region').value = '';
+      $('#map-search').value = '';
+      currentCsis = csis;
+      updateMap();
+    };
+
+    // Filtres
+    $('#map-region').onchange = (e) => {
+      const regId = e.target.value;
+      if (regId && REGION_COORDS[regId]) {
+        mapState.lat = REGION_COORDS[regId].lat;
+        mapState.lon = REGION_COORDS[regId].lon;
+        mapState.zoom = 8;
+      }
+      filterCsis();
+    };
+
+    $('#map-search').oninput = filterCsis;
+
+    function filterCsis() {
+      const regId = $('#map-region').value;
+      const query = ($('#map-search').value || '').toLowerCase();
+      currentCsis = csis.filter(c => {
+        const matchesReg = !regId || String(c.region_id) === String(regId);
+        const matchesQ = !query || c.nom.toLowerCase().includes(query) || (c.commune && c.commune.toLowerCase().includes(query));
+        return matchesReg && matchesQ;
+      });
+      updateMap();
+    }
+
+    updateMap();
+  } catch (err) {
+    el.innerHTML = `<div class="alert alert-error">❌ ${esc(err.message)}</div>`;
+  }
+}
+
+function goToSaisieForCsi(csiId, regionId) {
+  const saisieBtn = $$('nav button').find(b => b.dataset.v === 'saisie');
+  if (saisieBtn) {
+    saisieBtn.click();
+    setTimeout(() => {
+      const sr = $('#sr');
+      const sc = $('#sc');
+      if (sr && regionId) {
+        sr.value = regionId;
+        sr.dispatchEvent(new Event('change'));
+        setTimeout(() => { if (sc && csiId) { sc.value = csiId; sc.dispatchEvent(new Event('change')); } }, 300);
+      }
+    }, 150);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
 // VUE 3 — SAISIE MENSUELLE
 // ════════════════════════════════════════════════════════════════════════════════
 async function renderSaisie() {
@@ -704,21 +996,67 @@ async function renderSaisie() {
     </form>
   `;
 
-  // Si l'agent est lié à un CSI spécifique, pré-sélectionner sa région
-  if (state.user?.csi_id) {
-    // On va charger le CSI de l'agent directement
+  // Si l'agent est lié à un CSI spécifique, pré-sélectionner et restreindre
+  let agentCsi = null;
+  if (state.user?.role === 'agent' && state.user?.csi_id) {
+    try {
+      agentCsi = await api(`/csi/${state.user.csi_id}`);
+      if (agentCsi) {
+        $('#sr').value = agentCsi.region_id;
+        $('#sr').disabled = true;
+      }
+    } catch (e) {}
   }
 
   const fillCsi = async () => {
     $('#sc').innerHTML = '<option>Chargement...</option>';
     try {
-      const data = await api(`/csi?region=${$('#sr').value}&limit=200`);
-      const csis = data.csis || data;
-      $('#sc').innerHTML = csis.length
-        ? csis.map(c => `<option value="${c.id}" ${state.user?.csi_id==c.id?'selected':''}>${esc(c.nom)} — ${esc(c.commune)}</option>`).join('')
-        : '<option value="">Aucun CSI dans cette région</option>';
+      if (agentCsi) {
+        $('#sc').innerHTML = `<option value="${agentCsi.id}" selected>${esc(agentCsi.nom)} — ${esc(agentCsi.commune)} (${esc(agentCsi.region)})</option>`;
+        $('#sc').disabled = true;
+      } else {
+        const data = await api(`/csi?region=${$('#sr').value}&limit=200`);
+        const csis = data.csis || data;
+        $('#sc').innerHTML = csis.length
+          ? csis.map(c => `<option value="${c.id}" ${state.user?.csi_id==c.id?'selected':''}>${esc(c.nom)} — ${esc(c.commune)}</option>`).join('')
+          : '<option value="">Aucun CSI dans cette région</option>';
+      }
       await loadRapport();
     } catch(e) { notify(e.message, 'error'); }
+  };
+
+  const getDraftKey = () => {
+    const csiId = $('#sc')?.value;
+    const mois = $('#sm')?.value;
+    return (csiId && mois) ? `csi_draft_${csiId}_${mois}` : null;
+  };
+
+  const saveDraft = () => {
+    const key = getDraftKey();
+    if (!key) return;
+    const data = {};
+    $$('#sf input[type=number]').forEach(i => {
+      if (i.value !== '') data[i.dataset.k] = i.value;
+    });
+    if (Object.keys(data).length > 0) {
+      localStorage.setItem(key, JSON.stringify({ data, savedAt: Date.now() }));
+    }
+  };
+
+  const restoreDraft = () => {
+    const key = getDraftKey();
+    if (!key) return;
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return false;
+      const { data, savedAt } = JSON.parse(raw);
+      Object.entries(data).forEach(([k, v]) => {
+        const inp = $(`#sf [data-k="${k}"]`);
+        if (inp) inp.value = v;
+      });
+      notify(`Brouillon local restauré (sauvegardé le ${new Date(savedAt).toLocaleTimeString('fr-FR')})`, 'info');
+      return true;
+    } catch(e) { return false; }
   };
 
   const loadRapport = async () => {
@@ -728,6 +1066,7 @@ async function renderSaisie() {
 
     const csiId = $('#sc').value;
     const mois  = $('#sm').value;
+    const draftKey = getDraftKey();
 
     // Bouton export
     $('#export-rapport-btn').innerHTML = `
@@ -737,14 +1076,38 @@ async function renderSaisie() {
     try {
       const d = await api(`/rapport?csi_id=${csiId}&mois=${mois}`);
       if (!d) {
-        $('#rapport-status').innerHTML = '<div class="alert alert-info">ℹ️ Aucun rapport pour ce mois. Vous pouvez en créer un.</div>';
+        // Vérifier si un brouillon local existe
+        if (localStorage.getItem(draftKey)) {
+          $('#rapport-status').innerHTML = `
+            <div class="alert alert-info" style="display:flex;justify-content:space-between;align-items:center">
+              <span>ℹ️ Aucun rapport sur le serveur, mais un brouillon local est disponible.</span>
+              <button class="btn btn-primary btn-sm" id="btn-restore-draft" type="button">Restaurer le brouillon</button>
+            </div>`;
+          $('#btn-restore-draft').onclick = restoreDraft;
+        } else {
+          $('#rapport-status').innerHTML = '<div class="alert alert-info">ℹ️ Aucun rapport pour ce mois. Vous pouvez en créer un.</div>';
+        }
         return;
       }
-      $('#rapport-status').innerHTML = '<div class="alert alert-warn">✏️ Rapport existant chargé. Vous pouvez le corriger et ré-enregistrer.</div>';
+
+      $('#rapport-status').innerHTML = '<div class="alert alert-warn">✏️ Rapport existant chargé depuis le serveur. Vous pouvez le corriger et ré-enregistrer.</div>';
       const set = (k, v) => { const i = $(`[data-k="${k}"]`); if (i) i.value = v; };
       d.consultations.forEach(c => set(['c',c.motif,c.tranche,c.sexe].join('|'), c.nombre));
       d.vaccinations.forEach(v => set('v|'+v.vaccin, v.doses));
       d.medicaments.forEach(m => ['stock_debut','entrees','sorties','stock_fin','jours_rupture'].forEach(f => set(`m|${m.produit}|${f}`, m[f])));
+
+      // Si brouillon local non vide différent
+      if (localStorage.getItem(draftKey)) {
+        const extraDraftAlert = document.createElement('div');
+        extraDraftAlert.className = 'alert alert-warn mt';
+        extraDraftAlert.innerHTML = `
+          <span>⚠️ Des modifications locales non envoyées existent pour ce rapport.</span>
+          <button class="btn btn-secondary btn-sm" id="btn-restore-draft2" type="button" style="margin-left:8px">Restaurer le brouillon</button>
+          <button class="btn btn-ghost btn-sm" id="btn-discard-draft" type="button">Ignorer</button>`;
+        $('#rapport-status').appendChild(extraDraftAlert);
+        $('#btn-restore-draft2').onclick = restoreDraft;
+        $('#btn-discard-draft').onclick = () => { localStorage.removeItem(draftKey); extraDraftAlert.remove(); };
+      }
     } catch(e) { notify(e.message, 'error'); }
   };
 
@@ -752,6 +1115,9 @@ async function renderSaisie() {
   $('#sc').onchange = loadRapport;
   $('#sm').onchange = loadRapport;
   $('#refresh-rapport').onclick = loadRapport;
+
+  // Auto-save brouillon à chaque saisie
+  $('#sf').oninput = saveDraft;
 
   $('#sf').onsubmit = async (e) => {
     e.preventDefault();
@@ -786,6 +1152,8 @@ async function renderSaisie() {
 
     try {
       await api('/rapport', { method: 'PUT', body: b });
+      const draftKey = getDraftKey();
+      if (draftKey) localStorage.removeItem(draftKey);
       notify('Rapport enregistré avec succès !', 'success');
       await loadRapport();
     } catch(err) {
@@ -802,6 +1170,8 @@ async function renderSaisie() {
 // ════════════════════════════════════════════════════════════════════════════════
 // VUE 4 — GESTION DES UTILISATEURS (Admin uniquement)
 // ════════════════════════════════════════════════════════════════════════════════
+let cachedUsers = [];
+
 async function renderUtilisateurs() {
   const el = $('#utilisateurs');
   if (!isAdmin()) {
@@ -812,7 +1182,7 @@ async function renderUtilisateurs() {
   el.innerHTML = loading('Chargement des utilisateurs...');
 
   try {
-    const users = await api('/utilisateurs');
+    cachedUsers = await api('/utilisateurs');
 
     el.innerHTML = `
       <div class="flex" style="margin-bottom:16px">
@@ -823,7 +1193,7 @@ async function renderUtilisateurs() {
       <div class="tw">
         <table>
           <tr><th>Nom</th><th>Email</th><th>Rôle</th><th>CSI / Région</th><th>Dernière connexion</th><th>Statut</th><th>Actions</th></tr>
-          ${users.map(u => {
+          ${cachedUsers.map(u => {
             const badges = { admin: 'badge-admin', superviseur: 'badge-superviseur', agent: 'badge-agent' };
             const affectation = u.csi_nom ? u.csi_nom : (u.region_nom ? u.region_nom : '—');
             const connex = u.derniere_connexion ? new Date(u.derniere_connexion).toLocaleDateString('fr-FR') : 'Jamais';
@@ -854,47 +1224,58 @@ async function renderUtilisateurs() {
   }
 }
 
-function showUserForm(userId) {
+function showUserForm(existingUser) {
+  const isEdit = !!existingUser;
+  const userId = existingUser?.id;
   const container = $('#user-form-container');
   container.innerHTML = `
-    <div class="card mt">
-      <h2>${userId ? 'Modifier l\'utilisateur' : 'Ajouter un utilisateur'}</h2>
+    <div class="card mt" style="border:2px solid var(--vert)">
+      <h2>${isEdit ? '✏️ Modifier l\'utilisateur' : '➕ Ajouter un utilisateur'}</h2>
       <form id="user-form">
         <div class="row">
-          <label class="field"><span>Nom complet *</span><input name="nom" required placeholder="Prénom Nom"></label>
-          <label class="field"><span>Email *</span><input name="email" type="email" required></label>
-          <label class="field"><span>${userId ? 'Nouveau mot de passe' : 'Mot de passe *'}</span>
-            <input name="mot_de_passe" type="password" ${userId ? '' : 'required'} minlength="8" placeholder="Min. 8 caractères">
+          <label class="field"><span>Nom complet *</span>
+            <input name="nom" required placeholder="Prénom Nom" value="${esc(existingUser?.nom || '')}">
+          </label>
+          <label class="field"><span>Email *</span>
+            <input name="email" type="email" required value="${esc(existingUser?.email || '')}">
+          </label>
+          <label class="field"><span>${isEdit ? 'Nouveau mot de passe (optionnel)' : 'Mot de passe *'}</span>
+            <input name="mot_de_passe" type="password" ${isEdit ? '' : 'required'} minlength="8" placeholder="${isEdit ? 'Laisser vide pour ne pas modifier' : 'Min. 8 caractères'}">
           </label>
         </div>
         <div class="row">
           <label class="field"><span>Rôle *</span>
             <select name="role" id="form-role">
-              <option value="agent">Agent (accès à un CSI)</option>
-              <option value="superviseur">Superviseur régional</option>
-              <option value="admin">Administrateur</option>
+              <option value="agent" ${existingUser?.role === 'agent' ? 'selected' : ''}>Agent (accès à un CSI)</option>
+              <option value="superviseur" ${existingUser?.role === 'superviseur' ? 'selected' : ''}>Superviseur régional</option>
+              <option value="admin" ${existingUser?.role === 'admin' ? 'selected' : ''}>Administrateur</option>
             </select>
           </label>
           <label class="field" id="csi-field"><span>CSI affecté</span>
-            <select name="csi_id"><option value="">— Sélectionner —</option></select>
+            <select name="csi_id"><option value="">Chargement des CSI...</option></select>
           </label>
-          <label class="field" id="region-field" class="hid"><span>Région</span>
-            <select name="region_id"><option value="">— Toutes —</option>${ropts()}</select>
+          <label class="field" id="region-field"><span>Région affectée</span>
+            <select name="region_id">
+              <option value="">— Sélectionner une région —</option>
+              ${state.regions.map(r => `<option value="${r.id}" ${existingUser?.region_id === r.id ? 'selected' : ''}>${esc(r.nom)}</option>`).join('')}
+            </select>
           </label>
         </div>
         <div class="flex">
-          <button class="btn btn-primary" type="submit" id="save-user-btn">${userId ? 'Mettre à jour' : 'Créer l\'utilisateur'}</button>
+          <button class="btn btn-primary" type="submit" id="save-user-btn">${isEdit ? 'Enregistrer les modifications' : 'Créer l\'utilisateur'}</button>
           <button class="btn btn-secondary" type="button" onclick="$('#user-form-container').innerHTML=''">Annuler</button>
         </div>
       </form>
     </div>`;
 
-  // Charger les CSI pour le select
+  // Charger les CSI pour le select et sélectionner le CSI existant
   api('/csi?limit=200').then(data => {
     const csis = data.csis || data;
     const sel = document.querySelector('[name="csi_id"]');
-    if (sel) sel.innerHTML = '<option value="">— Sélectionner —</option>' +
-      csis.map(c => `<option value="${c.id}">${esc(c.nom)} — ${esc(c.commune)} (${esc(c.region)})</option>`).join('');
+    if (sel) {
+      sel.innerHTML = '<option value="">— Sélectionner un CSI —</option>' +
+        csis.map(c => `<option value="${c.id}" ${existingUser?.csi_id === c.id ? 'selected' : ''}>${esc(c.nom)} — ${esc(c.commune)} (${esc(c.region)})</option>`).join('');
+    }
   });
 
   // Afficher/masquer champs selon le rôle
@@ -907,34 +1288,37 @@ function showUserForm(userId) {
   roleSelect.onchange = toggleFields;
   toggleFields();
 
+  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
   $('#user-form').onsubmit = async (e) => {
     e.preventDefault();
     const btn = $('#save-user-btn');
     btn.disabled = true;
-    btn.innerHTML = '<div class="spinner"></div>';
+    btn.innerHTML = '<div class="spinner"></div> Sauvegarde...';
     const f = new FormData(e.target);
     const body = Object.fromEntries(f);
     if (!body.mot_de_passe) delete body.mot_de_passe;
-    if (!body.csi_id) delete body.csi_id;
-    if (!body.region_id) delete body.region_id;
+    if (!body.csi_id || body.role !== 'agent') delete body.csi_id;
+    if (!body.region_id || body.role !== 'superviseur') delete body.region_id;
 
     try {
       if (userId) await api(`/utilisateurs/${userId}`, { method: 'PUT', body });
       else await api('/utilisateurs', { method: 'POST', body });
-      notify(userId ? 'Utilisateur mis à jour.' : 'Utilisateur créé.', 'success');
+      notify(userId ? 'Utilisateur mis à jour avec succès.' : 'Utilisateur créé avec succès.', 'success');
       container.innerHTML = '';
       renderUtilisateurs();
     } catch(err) {
       notify(err.message, 'error');
     } finally {
       btn.disabled = false;
-      btn.textContent = userId ? 'Mettre à jour' : 'Créer l\'utilisateur';
+      btn.textContent = isEdit ? 'Enregistrer les modifications' : 'Créer l\'utilisateur';
     }
   };
 }
 
 async function editUser(id) {
-  showUserForm(id);
+  const user = cachedUsers.find(u => u.id === id);
+  showUserForm(user || { id });
 }
 
 async function deactivateUser(id, nom) {

@@ -5,6 +5,7 @@ const { pool } = require('../config/database');
 const { auth, signToken } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const logger = require('../utils/logger');
+const { logAudit } = require('../utils/audit');
 
 const wrap = f => (req, res) => f(req, res).catch(e => {
   logger.error({ err: e, route: req.path, user: req.user?.id }, 'Erreur route auth');
@@ -22,6 +23,7 @@ router.post('/login', validate(schemas.loginSchema), wrap(async (req, res) => {
 
   if (!rows[0]) {
     logger.warn({ email }, 'Tentative connexion email inconnu');
+    await logAudit({ action: 'LOGIN_FAILED', details: { email }, ip_adresse: req.ip });
     return res.status(401).json({ erreur: 'Email ou mot de passe incorrect' });
   }
 
@@ -30,11 +32,20 @@ router.post('/login', validate(schemas.loginSchema), wrap(async (req, res) => {
 
   if (!ok) {
     logger.warn({ userId: user.id }, 'Tentative connexion mauvais mot de passe');
+    await logAudit({ utilisateur_id: user.id, action: 'LOGIN_FAILED', ip_adresse: req.ip });
     return res.status(401).json({ erreur: 'Email ou mot de passe incorrect' });
   }
 
   // Mettre à jour la dernière connexion
   await pool.query('UPDATE utilisateurs SET derniere_connexion = now() WHERE id = $1', [user.id]);
+
+  await logAudit({
+    utilisateur_id: user.id,
+    action: 'LOGIN',
+    table_cible: 'utilisateurs',
+    enregistrement_id: user.id,
+    ip_adresse: req.ip
+  });
 
   const token = signToken(user);
 
@@ -104,6 +115,14 @@ router.post('/utilisateurs', auth(['admin']), validate(schemas.utilisateurSchema
       [email.toLowerCase().trim(), nom.trim(), hash, role, csi_id || null, region_id || null]
     );
     logger.info({ adminId: req.user.id, newUserId: rows[0].id }, 'Nouvel utilisateur créé');
+    await logAudit({
+      utilisateur_id: req.user.id,
+      action: 'CREATE_USER',
+      table_cible: 'utilisateurs',
+      enregistrement_id: rows[0].id,
+      details: { email: rows[0].email, role: rows[0].role },
+      ip_adresse: req.ip
+    });
     res.status(201).json(rows[0]);
   } catch (e) {
     if (e.code === '23505') return res.status(409).json({ erreur: 'Cet email est déjà utilisé' });
@@ -143,6 +162,14 @@ router.put('/utilisateurs/:id', auth(['admin']), wrap(async (req, res) => {
 
   if (!rows[0]) return res.status(404).json({ erreur: 'Utilisateur introuvable' });
   logger.info({ adminId: req.user.id, targetId: id }, 'Utilisateur modifié');
+  await logAudit({
+    utilisateur_id: req.user.id,
+    action: 'UPDATE_USER',
+    table_cible: 'utilisateurs',
+    enregistrement_id: id,
+    details: { champs: Object.keys(req.body).filter(k => k !== 'mot_de_passe') },
+    ip_adresse: req.ip
+  });
   res.json(rows[0]);
 }));
 
@@ -158,6 +185,14 @@ router.delete('/utilisateurs/:id', auth(['admin']), wrap(async (req, res) => {
   if (!rows[0]) return res.status(404).json({ erreur: 'Utilisateur introuvable' });
 
   logger.info({ adminId: req.user.id, targetId: id }, 'Utilisateur désactivé');
+  await logAudit({
+    utilisateur_id: req.user.id,
+    action: 'DEACTIVATE_USER',
+    table_cible: 'utilisateurs',
+    enregistrement_id: id,
+    details: { email: rows[0].email },
+    ip_adresse: req.ip
+  });
   res.json({ ok: true, utilisateur: rows[0] });
 }));
 

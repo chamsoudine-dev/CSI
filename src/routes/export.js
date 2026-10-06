@@ -91,11 +91,22 @@ router.get('/export/rapport', auth(), wrap(async (req, res) => {
   res.send('\uFEFF' + csv); // BOM UTF-8 pour Excel
 }));
 
-// ─── GET /api/export/stats ── Export CSV des stats globales ──────────────────
+// ─── GET /api/export/stats ── Export CSV des stats ────────────────────────────
 router.get('/export/stats', auth(['admin', 'superviseur']), wrap(async (req, res) => {
-  const { mois } = req.query;
+  const { mois, region } = req.query;
   const m = moisDate(mois) || new Date().toISOString().slice(0, 7) + '-01';
   const moisLabel = mois || new Date().toISOString().slice(0, 7);
+  const { role, region_id: userRegion } = req.user;
+
+  // Un superviseur est restreint à sa propre région
+  const regionFilter = role === 'superviseur' && userRegion ? userRegion : (region ? parseInt(region) : null);
+
+  const queryParams = [m];
+  let filterSql = '';
+  if (regionFilter) {
+    queryParams.push(regionFilter);
+    filterSql = ` AND g.id = $${queryParams.length}`;
+  }
 
   const { rows } = await pool.query(
     `SELECT g.nom AS region, s.nom AS csi, c.nom AS commune, c.type,
@@ -107,11 +118,13 @@ router.get('/export/stats', auth(['admin', 'superviseur']), wrap(async (req, res
      JOIN communes c ON c.id = s.commune_id
      JOIN regions g ON g.id = c.region_id
      LEFT JOIN rapports r ON r.csi_id = s.id AND r.mois = $1
-     WHERE s.actif
-     ORDER BY g.nom, c.nom, s.nom`, [m]
+     WHERE s.actif${filterSql}
+     ORDER BY g.nom, c.nom, s.nom`, queryParams
   );
 
-  const filename = `stats_nationale_${moisLabel}.csv`;
+  const filename = regionFilter
+    ? `stats_region_${regionFilter}_${moisLabel}.csv`
+    : `stats_nationale_${moisLabel}.csv`;
   const csv = toCSV(rows, [
     { key: 'region', label: 'Région' },
     { key: 'commune', label: 'Commune' },

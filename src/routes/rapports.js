@@ -4,6 +4,7 @@ const { pool, withTransaction } = require('../config/database');
 const { auth, checkCsiAccess } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const logger = require('../utils/logger');
+const { logAudit } = require('../utils/audit');
 
 const wrap = f => (req, res) => f(req, res).catch(e => {
   logger.error({ err: e, route: req.path, user: req.user?.id }, 'Erreur route rapport');
@@ -108,6 +109,14 @@ router.put('/rapport', auth(), validate(schemas.rapportSchema), checkCsiAccess, 
   });
 
   logger.info({ userId: req.user.id, csiId: csi_id, mois, rapportId }, 'Rapport enregistré');
+  await logAudit({
+    utilisateur_id: req.user.id,
+    action: 'SAVE_RAPPORT',
+    table_cible: 'rapports',
+    enregistrement_id: rapportId,
+    details: { csi_id, mois, nb_consultations: consultations.length, nb_vaccinations: vaccinations.length, nb_medicaments: medicaments.length },
+    ip_adresse: req.ip
+  });
   res.json({ ok: true, rapport_id: rapportId });
 }));
 

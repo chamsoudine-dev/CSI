@@ -4,6 +4,7 @@ const { pool } = require('../config/database');
 const { auth } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const logger = require('../utils/logger');
+const { logAudit } = require('../utils/audit');
 
 const wrap = f => (req, res) => f(req, res).catch(e => {
   logger.error({ err: e, route: req.path }, 'Erreur route CSI');
@@ -93,6 +94,14 @@ router.post('/csi', auth(['admin', 'superviseur']), validate(schemas.csiSchema),
       [nom.trim(), commRes.rows[0].id, latitude || null, longitude || null, services || []]
     );
     logger.info({ userId: req.user.id, csiId: rows[0].id, nom: rows[0].nom }, 'CSI créé');
+    await logAudit({
+      utilisateur_id: req.user.id,
+      action: 'CREATE_CSI',
+      table_cible: 'csi',
+      enregistrement_id: rows[0].id,
+      details: { nom: rows[0].nom, commune, region_id },
+      ip_adresse: req.ip
+    });
     res.status(201).json(rows[0]);
   } catch (e) {
     if (e.code === '23505') return res.status(409).json({ erreur: 'Ce CSI existe déjà dans cette commune' });
@@ -125,6 +134,14 @@ router.put('/csi/:id', auth(['admin']), wrap(async (req, res) => {
 
   if (!rows[0]) return res.status(404).json({ erreur: 'CSI introuvable' });
   logger.info({ userId: req.user.id, csiId: id }, 'CSI modifié');
+  await logAudit({
+    utilisateur_id: req.user.id,
+    action: 'UPDATE_CSI',
+    table_cible: 'csi',
+    enregistrement_id: id,
+    details: { champs: Object.keys(req.body) },
+    ip_adresse: req.ip
+  });
   res.json(rows[0]);
 }));
 
@@ -136,6 +153,14 @@ router.delete('/csi/:id', auth(['admin']), wrap(async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json({ erreur: 'CSI introuvable' });
   logger.info({ userId: req.user.id, csiId: req.params.id }, 'CSI désactivé');
+  await logAudit({
+    utilisateur_id: req.user.id,
+    action: 'DEACTIVATE_CSI',
+    table_cible: 'csi',
+    enregistrement_id: req.params.id,
+    details: { nom: rows[0].nom },
+    ip_adresse: req.ip
+  });
   res.json({ ok: true, csi: rows[0] });
 }));
 
