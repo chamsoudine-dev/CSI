@@ -19,20 +19,35 @@ if (missing.length) {
 }
 
 if (!process.env.JWT_SECRET && !process.env.SECRET) {
-  logger.warn('JWT_SECRET non défini — utilisation d\'une clé par défaut INSÉCURISÉE');
+  if (process.env.NODE_ENV === 'production') {
+    logger.fatal('JWT_SECRET non défini en production — le serveur refuse de démarrer.');
+    process.exit(1);
+  } else {
+    logger.warn('JWT_SECRET non défini — utilisation d\'une clé par défaut INSÉCURISÉE');
+  }
 }
 
 // ─── Initialisation Express ───────────────────────────────────────────────────
 const app = express();
+
+// Configuration trust proxy
+const trustProxyEnv = process.env.TRUST_PROXY;
+if (trustProxyEnv !== undefined && trustProxyEnv !== '') {
+  const tpVal = trustProxyEnv === 'true' ? true : (trustProxyEnv === 'false' ? false : (!isNaN(trustProxyEnv) ? parseInt(trustProxyEnv, 10) : trustProxyEnv));
+  app.set('trust proxy', tpVal);
+} else {
+  app.set('trust proxy', 1);
+}
 
 // ─── Sécurité HTTP ────────────────────────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"], // nécessaire pour le frontend monolithique
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', 'https://tile.openstreetmap.org'],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://unpkg.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https://tile.openstreetmap.org", "https://*.tile.openstreetmap.org", "https://unpkg.com"],
       connectSrc: ["'self'"]
     }
   }
@@ -90,17 +105,25 @@ app.use((req, res, next) => {
 app.use('/api', apiLimiter);
 app.use('/api/login', loginLimiter);
 
-const authRoutes    = require('./src/routes/auth');
-const csiRoutes     = require('./src/routes/csi');
-const rapportRoutes = require('./src/routes/rapports');
-const statsRoutes   = require('./src/routes/stats');
-const exportRoutes  = require('./src/routes/export');
+const authRoutes          = require('./src/routes/auth');
+const csiRoutes           = require('./src/routes/csi');
+const rapportRoutes       = require('./src/routes/rapports');
+const statsRoutes         = require('./src/routes/stats');
+const exportRoutes        = require('./src/routes/export');
+const catalogueRoutes     = require('./src/routes/catalogue');
+const ravitaillementRoutes = require('./src/routes/ravitaillement');
+const materniteRoutes     = require('./src/routes/maternite');
+const patientRoutes       = require('./src/routes/patients');
 
 app.use('/api', authRoutes);
 app.use('/api', csiRoutes);
 app.use('/api', rapportRoutes);
 app.use('/api', statsRoutes);
 app.use('/api', exportRoutes);
+app.use('/api/catalogue', catalogueRoutes);
+app.use('/api/ravitaillement', ravitaillementRoutes);
+app.use('/api/maternite', materniteRoutes);
+app.use('/api/patients', patientRoutes);
 
 // ─── Fallback SPA ─────────────────────────────────────────────────────────────
 app.get('*', (req, res) => {
