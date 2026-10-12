@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 const { auth } = require('../middleware/auth');
+const { validateIdParam, checkCsiScope } = require('../middleware/scope');
 const { logAudit } = require('../utils/audit');
 
 // ── Génération du numéro patient unique ──────────────────────────────────────
@@ -12,9 +13,7 @@ async function genererNumeroPatient() {
   return `NIG-${annee}-${num}`;
 }
 
-// ── GET /api/patients — Liste / recherche nationale ──────────────────────────
-// Admin & superviseur : tous patients
-// Agent : patients de son CSI uniquement
+// ── GET /api/patients — Liste filtrée selon le périmètre (Phase 2.4) ─────────
 router.get('/', auth(), async (req, res) => {
   try {
     const { q = '', sexe, region, csi_id, page = 1, limit = 30 } = req.query;
@@ -24,13 +23,28 @@ router.get('/', auth(), async (req, res) => {
     const params = [];
     let pi = 1;
 
-    // Filtre par rôle agent (son CSI uniquement)
-    if (req.user.role === 'agent' && req.user.csi_id) {
+    // Périmètre strict selon le rôle
+    if (req.user.role === 'agent') {
       conditions.push(`p.csi_inscription_id = $${pi++}`);
       params.push(req.user.csi_id);
+    } else if (req.user.role === 'superviseur') {
+      // Superviseur : restreint aux patients de sa région
+      conditions.push(`(p.region_id = $${pi} OR p.csi_inscription_id IN (SELECT c.id FROM csi c JOIN communes co ON co.id = c.commune_id WHERE co.region_id = $${pi}))`);
+      params.push(req.user.region_id);
+      pi++;
+    } else {
+      // Admin national : filtres optionnels
+      if (region) {
+        conditions.push(`p.region_id = $${pi++}`);
+        params.push(parseInt(region, 10));
+      }
+      if (csi_id) {
+        conditions.push(`p.csi_inscription_id = $${pi++}`);
+        params.push(parseInt(csi_id, 10));
+      }
     }
 
-    // Recherche full-text ou partielle
+    // Recherche textuelle
     if (q) {
       conditions.push(`(
         LOWER(p.nom) LIKE $${pi} OR
@@ -42,11 +56,9 @@ router.get('/', auth(), async (req, res) => {
       pi++;
     }
 
-    if (sexe) { conditions.push(`p.sexe = $${pi++}`); params.push(sexe); }
-    if (region) { conditions.push(`p.region_id = $${pi++}`); params.push(parseInt(region, 10)); }
-    if (csi_id && req.user.role !== 'agent') {
-      conditions.push(`p.csi_inscription_id = $${pi++}`);
-      params.push(parseInt(csi_id, 10));
+    if (sexe) {
+      conditions.push(`p.sexe = $${pi++}`);
+      params.push(sexe);
     }
 
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
@@ -84,16 +96,25 @@ router.get('/', auth(), async (req, res) => {
   }
 });
 
-// ── GET /api/patients/stats — Statistiques nationales patients ───────────────
-router.get('/stats', auth(['admin', 'superviseur']), async (req, res) => {
+// ── GET /api/patients/stats — Statistiques filtrées selon périmètre (Phase 2.4) 
+router.get('/stats', auth(), async (req, res) => {
   try {
     const { region } = req.query;
     const params = [];
-    let cond = '';
-    if (region) {
+    const conditions = [];
+
+    if (req.user.role === 'agent') {
+      params.push(req.user.csi_id);
+      conditions.push(`p.csi_inscription_id = $${params.length}`);
+    } else if (req.user.role === 'superviseur') {
+      params.push(req.user.region_id);
+      conditions.push(`(p.region_id = $${params.length} OR p.csi_inscription_id IN (SELECT c.id FROM csi c JOIN communes co ON co.id = c.commune_id WHERE co.region_id = $${params.length}))`);
+    } else if (region) {
       params.push(parseInt(region, 10));
-      cond = `WHERE p.region_id = $${params.length}`;
+      conditions.push(`p.region_id = $${params.length}`);
     }
+
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
     const { rows } = await pool.query(`
       SELECT
@@ -102,12 +123,15 @@ router.get('/stats', auth(['admin', 'superviseur']), async (req, res) => {
         COUNT(DISTINCT p.id) FILTER (WHERE p.sexe = 'M') AS hommes,
         COUNT(dc.id)                            AS total_visites,
         COUNT(DISTINCT dc.csi_id)               AS csi_actifs,
-        (SELECT COUNT(*) FROM patients WHERE DATE_PART('month', cree_le) = DATE_PART('month', NOW())
-          AND DATE_PART('year', cree_le) = DATE_PART('year', NOW())) AS nouveaux_ce_mois
+        (SELECT COUNT(*) FROM patients p2
+         ${where ? where.replace(/p\./g, 'p2.') + ' AND' : 'WHERE'}
+         DATE_PART('month', p2.cree_le) = DATE_PART('month', NOW())
+         AND DATE_PART('year', p2.cree_le) = DATE_PART('year', NOW())) AS nouveaux_ce_mois
       FROM patients p
       LEFT JOIN dossiers_consultation dc ON dc.patient_id = p.id
-      ${cond}
+      ${where}
     `, params);
+
     res.json(rows[0] || {});
   } catch (e) {
     console.error(e);
@@ -115,10 +139,10 @@ router.get('/stats', auth(['admin', 'superviseur']), async (req, res) => {
   }
 });
 
-// ── GET /api/patients/:id — Fiche complète patient ───────────────────────────
-router.get('/:id', auth(), async (req, res) => {
+// ── GET /api/patients/:id — Fiche complète patient (Phase 2.4 & 2.9) ───────────
+router.get('/:id', auth(), validateIdParam('id'), async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id, 10);
 
     const patRes = await pool.query(`
       SELECT
@@ -126,6 +150,7 @@ router.get('/:id', auth(), async (req, res) => {
         r.nom AS region_nom,
         c.nom AS csi_inscription_nom,
         co.nom AS csi_commune,
+        co.region_id AS csi_region_id,
         u.nom AS enregistre_par_nom
       FROM patients p
       LEFT JOIN regions r ON r.id = p.region_id
@@ -139,9 +164,16 @@ router.get('/:id', auth(), async (req, res) => {
 
     const patient = patRes.rows[0];
 
-    // Restriction agent : seulement son CSI
-    if (req.user.role === 'agent' && patient.csi_inscription_id !== req.user.csi_id) {
-      return res.status(403).json({ erreur: 'Accès non autorisé', error: 'Accès non autorisé' });
+    // Vérification du périmètre d'accès
+    if (req.user.role === 'agent') {
+      if (patient.csi_inscription_id !== req.user.csi_id) {
+        return res.status(403).json({ erreur: 'Accès non autorisé à ce patient', error: 'Accès non autorisé' });
+      }
+    } else if (req.user.role === 'superviseur') {
+      const isInRegion = (patient.region_id === req.user.region_id) || (patient.csi_region_id === req.user.region_id);
+      if (!isInRegion) {
+        return res.status(403).json({ erreur: 'Ce patient n\'appartient pas à votre région', error: 'Accès non autorisé' });
+      }
     }
 
     // Historique des visites
@@ -175,10 +207,26 @@ router.post('/', auth(), async (req, res) => {
 
     if (!nom) return res.status(400).json({ erreur: 'Le nom est obligatoire', error: 'Le nom est obligatoire' });
 
-    const numero_patient = await genererNumeroPatient();
+    // CSI d'inscription imposé selon rôle
+    let csi_inscription_id = null;
+    let patRegionId = region_id || null;
 
-    // CSI de l'agent ou celui spécifié (admin)
-    const csi_inscription_id = req.user.csi_id || req.body.csi_inscription_id || null;
+    if (req.user.role === 'agent') {
+      csi_inscription_id = req.user.csi_id;
+    } else if (req.user.role === 'superviseur') {
+      csi_inscription_id = req.body.csi_inscription_id || null;
+      if (csi_inscription_id) {
+        const allowed = await checkCsiScope(csi_inscription_id, req.user);
+        if (!allowed) {
+          return res.status(403).json({ erreur: 'Le CSI spécifié n\'appartient pas à votre région' });
+        }
+      }
+      patRegionId = req.user.region_id;
+    } else {
+      csi_inscription_id = req.body.csi_inscription_id || null;
+    }
+
+    const numero_patient = await genererNumeroPatient();
 
     const { rows } = await pool.query(`
       INSERT INTO patients
@@ -190,7 +238,7 @@ router.post('/', auth(), async (req, res) => {
     `, [
       numero_patient, nom, prenom || null, sexe || null,
       date_naissance || null, lieu_naissance || null,
-      commune_residence || null, region_id || null,
+      commune_residence || null, patRegionId,
       telephone || null, groupe_sanguin || 'Inconnu',
       allergies || null, maladies_chroniques || null,
       csi_inscription_id, req.user.id
@@ -212,45 +260,73 @@ router.post('/', auth(), async (req, res) => {
   }
 });
 
-// ── PUT /api/patients/:id — Modifier un patient ──────────────────────────────
-router.put('/:id', auth(), async (req, res) => {
+// ── PUT /api/patients/:id — Modifier un patient (Phase 2.4 & 2.9) ────────────
+// "PUT ne doit modifier que les champs fournis"
+router.put('/:id', auth(), validateIdParam('id'), async (req, res) => {
   try {
-    const { id } = req.params;
-    const {
-      nom, prenom, sexe, date_naissance, lieu_naissance,
-      commune_residence, region_id, telephone, groupe_sanguin,
-      allergies, maladies_chroniques
-    } = req.body;
+    const id = parseInt(req.params.id, 10);
+
+    const { rows: existingRows } = await pool.query(`
+      SELECT p.*, co.region_id AS csi_region_id
+      FROM patients p
+      LEFT JOIN csi c ON c.id = p.csi_inscription_id
+      LEFT JOIN communes co ON co.id = c.commune_id
+      WHERE p.id = $1
+    `, [id]);
+
+    if (!existingRows.length) return res.status(404).json({ erreur: 'Patient introuvable', error: 'Patient introuvable' });
+    const patient = existingRows[0];
+
+    // Vérification du périmètre
+    if (req.user.role === 'agent') {
+      if (patient.csi_inscription_id !== req.user.csi_id) {
+        return res.status(403).json({ erreur: 'Accès non autorisé', error: 'Accès non autorisé' });
+      }
+    } else if (req.user.role === 'superviseur') {
+      const isInRegion = (patient.region_id === req.user.region_id) || (patient.csi_region_id === req.user.region_id);
+      if (!isInRegion) {
+        return res.status(403).json({ erreur: 'Ce patient n\'appartient pas à votre région', error: 'Accès non autorisé' });
+      }
+    }
+
+    // Construction dynamique : ne modifier que les champs expressément fournis
+    const allowedFields = [
+      'nom', 'prenom', 'sexe', 'date_naissance', 'lieu_naissance',
+      'commune_residence', 'region_id', 'telephone', 'groupe_sanguin',
+      'allergies', 'maladies_chroniques'
+    ];
+
+    const updates = [];
+    const params = [];
+    let pi = 1;
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates.push(`${field} = $${pi++}`);
+        params.push(req.body[field]);
+      }
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ erreur: 'Aucun champ à modifier fourni' });
+    }
+
+    updates.push(`modifie_le = NOW()`);
+    params.push(id);
 
     const { rows } = await pool.query(`
-      UPDATE patients SET
-        nom = COALESCE($1, nom),
-        prenom = COALESCE($2, prenom),
-        sexe = COALESCE($3, sexe),
-        date_naissance = COALESCE($4, date_naissance),
-        lieu_naissance = COALESCE($5, lieu_naissance),
-        commune_residence = COALESCE($6, commune_residence),
-        region_id = COALESCE($7, region_id),
-        telephone = COALESCE($8, telephone),
-        groupe_sanguin = COALESCE($9, groupe_sanguin),
-        allergies = COALESCE($10, allergies),
-        maladies_chroniques = COALESCE($11, maladies_chroniques),
-        modifie_le = NOW()
-      WHERE id = $12
+      UPDATE patients
+      SET ${updates.join(', ')}
+      WHERE id = $${pi}
       RETURNING *
-    `, [
-      nom, prenom, sexe, date_naissance, lieu_naissance,
-      commune_residence, region_id, telephone, groupe_sanguin,
-      allergies, maladies_chroniques, id
-    ]);
+    `, params);
 
-    if (!rows.length) return res.status(404).json({ erreur: 'Patient introuvable', error: 'Patient introuvable' });
     await logAudit({
       utilisateur_id: req.user.id,
       action: 'UPDATE_PATIENT',
       table_cible: 'patients',
       enregistrement_id: id,
-      details: { nom: rows[0].nom, prenom: rows[0].prenom },
+      details: { champs_modifies: Object.keys(req.body).filter(k => allowedFields.includes(k)) },
       ip_adresse: req.ip
     });
     res.json(rows[0]);
@@ -260,10 +336,10 @@ router.put('/:id', auth(), async (req, res) => {
   }
 });
 
-// ── POST /api/patients/:id/visites — Enregistrer une consultation ────────────
-router.post('/:id/visites', auth(), async (req, res) => {
+// ── POST /api/patients/:id/visites — Consultation (Phase 2.4 & 2.9) ─────────
+router.post('/:id/visites', auth(), validateIdParam('id'), async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id, 10);
     const {
       motif, diagnostic, traitement, ordonnance,
       tension_arterielle, temperature, poids_kg,
@@ -272,8 +348,37 @@ router.post('/:id/visites', auth(), async (req, res) => {
 
     if (!motif) return res.status(400).json({ erreur: 'Le motif est obligatoire', error: 'Le motif est obligatoire' });
 
-    const csi_id = req.user.csi_id || req.body.csi_id;
-    if (!csi_id) return res.status(400).json({ erreur: 'CSI manquant', error: 'CSI manquant' });
+    // Vérifier l'existence et l'accès au patient
+    const { rows: patRows } = await pool.query(`
+      SELECT p.*, co.region_id AS csi_region_id
+      FROM patients p
+      LEFT JOIN csi c ON c.id = p.csi_inscription_id
+      LEFT JOIN communes co ON co.id = c.commune_id
+      WHERE p.id = $1
+    `, [id]);
+
+    if (!patRows.length) return res.status(404).json({ erreur: 'Patient introuvable' });
+    const patient = patRows[0];
+
+    let csi_id;
+    if (req.user.role === 'agent') {
+      if (patient.csi_inscription_id !== req.user.csi_id) {
+        return res.status(403).json({ erreur: 'Vous ne pouvez enregistrer des visites que pour les patients de votre CSI' });
+      }
+      csi_id = req.user.csi_id;
+    } else if (req.user.role === 'superviseur') {
+      const isInRegion = (patient.region_id === req.user.region_id) || (patient.csi_region_id === req.user.region_id);
+      if (!isInRegion) {
+        return res.status(403).json({ erreur: 'Ce patient n\'appartient pas à votre région' });
+      }
+      csi_id = req.body.csi_id || patient.csi_inscription_id;
+      const allowed = await checkCsiScope(csi_id, req.user);
+      if (!allowed) return res.status(403).json({ erreur: 'Le CSI de la consultation doit appartenir à votre région' });
+    } else {
+      csi_id = req.body.csi_id || patient.csi_inscription_id;
+    }
+
+    if (!csi_id) return res.status(400).json({ erreur: 'CSI manquant' });
 
     const { rows } = await pool.query(`
       INSERT INTO dossiers_consultation

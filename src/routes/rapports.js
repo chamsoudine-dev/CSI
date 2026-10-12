@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool, withTransaction } = require('../config/database');
 const { auth, checkCsiAccess } = require('../middleware/auth');
+const { checkCsiScope } = require('../middleware/scope');
 const { validate, schemas } = require('../middleware/validate');
 const logger = require('../utils/logger');
 const { logAudit } = require('../utils/audit');
@@ -20,8 +21,9 @@ router.get('/rapport', auth(), wrap(async (req, res) => {
   const m = moisDate(mois);
   if (!csi_id || !m) return res.status(400).json({ erreur: 'csi_id et mois requis' });
 
-  // Agent : vérifier accès à ce CSI
-  if (req.user.role === 'agent' && req.user.csi_id && req.user.csi_id !== parseInt(csi_id)) {
+  // Contrôle du périmètre (agent: son CSI, superviseur: sa région, admin: libre)
+  const allowed = await checkCsiScope(csi_id, req.user);
+  if (!allowed) {
     return res.status(403).json({ erreur: 'Accès non autorisé à ce CSI' });
   }
 

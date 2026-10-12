@@ -2,23 +2,37 @@
  * routes/ravitaillement.js
  * Gestion des demandes de ravitaillement, alertes ruptures et approbation hiérarchique
  *
- * PHASE 1 (bugs bloquants) :
- *  - Corrigé : jointures SQL — csi n'a pas region_id ni commune ;
- *    on passe désormais par JOIN communes co ON co.id = c.commune_id
- *  - Corrigé : ip: req.ip → ip_adresse: req.ip dans logAudit
- *  - Corrigé : injection SQL dans /stats → paramètre $n
+ * PHASE 2 :
+ * - Périmètre strict & validation Joi
+ * - Machine d'états stricte des commandes (409 sur transition invalide)
+ * - Rôle agent (LIVRE uniquement sur EXPEDIE de son CSI)
+ * - Rôle superviseur (EN_REVUE, APPROUVE, EXPEDIE, REJETE de sa région)
+ * - Génération du numéro de commande sans doublon via séquence PostgreSQL
+ * - Validation des paramètres :id (entiers positifs)
  */
 
 const express = require('express');
 const router  = express.Router();
 const { pool, withTransaction } = require('../config/database');
-const { auth, checkCsiAccess } = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
+const { checkCsiScope, validateIdParam } = require('../middleware/scope');
 const logger  = require('../utils/logger');
 const { logAudit } = require('../utils/audit');
 
+// Matrice des transitions valides
+const TRANSITIONS_VALIDES = {
+  'DEMANDE': ['EN_REVUE', 'APPROUVE', 'REJETE'],
+  'EN_REVUE': ['APPROUVE', 'REJETE'],
+  'APPROUVE': ['EXPEDIE'],
+  'EXPEDIE': ['LIVRE'],
+  'LIVRE': [],
+  'REJETE': []
+};
+
 /**
  * GET /api/ravitaillement
- * Liste des demandes de ravitaillement (filtrable par statut, CSI, région)
+ * Liste des demandes de ravitaillement filtrée selon le périmètre strict
  */
 router.get('/', auth(), async (req, res) => {
   try {
@@ -26,22 +40,27 @@ router.get('/', auth(), async (req, res) => {
     const conditions = [];
     const params     = [];
 
-    // Si agent : seulement les demandes de son CSI
-    if (req.user.role === 'agent' && req.user.csi_id) {
+    // Périmètre strict selon le rôle
+    if (req.user.role === 'agent') {
       params.push(req.user.csi_id);
       conditions.push(`d.csi_id = $${params.length}`);
-    } else if (csi_id) {
-      params.push(csi_id);
-      conditions.push(`d.csi_id = $${params.length}`);
-    }
-
-    // Si superviseur lié à une région — utilise co.region_id via la jointure communes
-    if (req.user.role === 'superviseur' && req.user.region_id) {
+    } else if (req.user.role === 'superviseur') {
       params.push(req.user.region_id);
       conditions.push(`co.region_id = $${params.length}`);
-    } else if (region_id) {
-      params.push(region_id);
-      conditions.push(`co.region_id = $${params.length}`);
+      if (csi_id) {
+        params.push(parseInt(csi_id, 10));
+        conditions.push(`d.csi_id = $${params.length}`);
+      }
+    } else {
+      // Admin national
+      if (csi_id) {
+        params.push(parseInt(csi_id, 10));
+        conditions.push(`d.csi_id = $${params.length}`);
+      }
+      if (region_id) {
+        params.push(parseInt(region_id, 10));
+        conditions.push(`co.region_id = $${params.length}`);
+      }
     }
 
     if (statut) {
@@ -102,15 +121,17 @@ router.get('/', auth(), async (req, res) => {
 
 /**
  * GET /api/ravitaillement/stats
- * Indicateurs des alertes de rupture et commandes
- * PHASE 1 : injection SQL corrigée → paramètre $n
+ * Indicateurs des alertes et commandes selon le périmètre strict
  */
 router.get('/stats', auth(), async (req, res) => {
   try {
     const params = [];
     let filterRegion = '';
 
-    if (req.user.role === 'superviseur' && req.user.region_id) {
+    if (req.user.role === 'agent') {
+      params.push(req.user.csi_id);
+      filterRegion = `AND d.csi_id = $${params.length}`;
+    } else if (req.user.role === 'superviseur') {
       params.push(parseInt(req.user.region_id, 10));
       filterRegion = `AND co.region_id = $${params.length}`;
     }
@@ -138,10 +159,9 @@ router.get('/stats', auth(), async (req, res) => {
 
 /**
  * GET /api/ravitaillement/:id
- * Détail d'une demande avec la liste des médicaments commandés
- * PHASE 1 : jointures corrigées (commune, region via communes)
+ * Détail d'une demande avec contrôle strict du périmètre
  */
-router.get('/:id', auth(), async (req, res) => {
+router.get('/:id', auth(), validateIdParam('id'), async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const enteteRes = await pool.query(`
@@ -149,6 +169,7 @@ router.get('/:id', auth(), async (req, res) => {
         d.*,
         c.nom      AS csi_nom,
         co.nom     AS csi_commune,
+        co.region_id AS csi_region_id,
         r.nom      AS region_nom,
         u_dem.nom   AS demandeur_nom,
         u_traite.nom AS traite_par_nom
@@ -166,6 +187,14 @@ router.get('/:id', auth(), async (req, res) => {
     }
 
     const demande = enteteRes.rows[0];
+
+    // Vérification de périmètre
+    if (req.user.role === 'agent' && demande.csi_id !== req.user.csi_id) {
+      return res.status(403).json({ erreur: 'Accès non autorisé à cette commande' });
+    }
+    if (req.user.role === 'superviseur' && demande.csi_region_id !== req.user.region_id) {
+      return res.status(403).json({ erreur: 'Cette commande n\'appartient pas à votre région' });
+    }
 
     const lignesRes = await pool.query(`
       SELECT
@@ -199,30 +228,34 @@ router.get('/:id', auth(), async (req, res) => {
 
 /**
  * POST /api/ravitaillement
- * Créer une nouvelle demande de ravitaillement (Agent ou Responsable)
- * PHASE 1 : ip_adresse corrigé dans logAudit
+ * Créer une nouvelle demande de ravitaillement avec validation Joi et séquence PostgreSQL
  */
-router.post('/', auth(), async (req, res) => {
+router.post('/', auth(), validate(schemas.ravitaillementSchema), async (req, res) => {
   try {
     const { csi_id, priorite, motif, lignes } = req.body;
 
-    if (!csi_id || !lignes || !Array.isArray(lignes) || !lignes.length) {
-      return res.status(400).json({ erreur: 'CSI et liste de médicaments obligatoires' });
+    // Déterminer et valider le CSI cible
+    let targetCsiId;
+    if (req.user.role === 'agent') {
+      targetCsiId = req.user.csi_id;
+    } else {
+      targetCsiId = csi_id;
+      const allowed = await checkCsiScope(targetCsiId, req.user);
+      if (!allowed) {
+        return res.status(403).json({ erreur: 'Accès non autorisé à ce CSI' });
+      }
     }
 
-    // Vérifier l'accès CSI
-    if (req.user.role === 'agent' && req.user.csi_id && req.user.csi_id !== parseInt(csi_id, 10)) {
-      return res.status(403).json({ erreur: 'Vous ne pouvez commander que pour votre propre CSI.' });
+    if (!targetCsiId) {
+      return res.status(400).json({ erreur: 'CSI obligatoire' });
     }
 
     const result = await withTransaction(async (client) => {
-      // Générer le numéro de commande (count-based, Phase 2.7 utilisera une séquence)
+      // 2.7 Séquence PostgreSQL pour numéro de commande sans doublon
       const year = new Date().getFullYear();
-      const countRes = await client.query(
-        `SELECT count(*) FROM demandes_ravitaillement WHERE date_demande >= date_trunc('year', now())`
-      );
-      const nextNum = parseInt(countRes.rows[0].count, 10) + 1;
-      const numCmd = `CMD-${year}-${String(nextNum).padStart(4, '0')}`;
+      await client.query(`CREATE SEQUENCE IF NOT EXISTS commande_numero_seq START 1`);
+      const seqRes = await client.query(`SELECT nextval('commande_numero_seq') AS n`);
+      const numCmd = `CMD-${year}-${String(seqRes.rows[0].n).padStart(4, '0')}`;
 
       const pVal = ['NORMALE', 'URGENTE', 'CRITIQUE_RUPTURE'].includes(priorite) ? priorite : 'NORMALE';
 
@@ -231,7 +264,7 @@ router.post('/', auth(), async (req, res) => {
           (numero_commande, csi_id, demandeur_id, statut, priorite, motif)
         VALUES ($1, $2, $3, 'DEMANDE', $4, $5)
         RETURNING id, numero_commande
-      `, [numCmd, csi_id, req.user.id, pVal, motif || 'Réapprovisionnement périodique']);
+      `, [numCmd, targetCsiId, req.user.id, pVal, motif || 'Réapprovisionnement périodique']);
 
       const demId = demRes.rows[0].id;
 
@@ -251,14 +284,14 @@ router.post('/', auth(), async (req, res) => {
         ]);
       }
 
-      // PHASE 1 : ip: → ip_adresse:
       await logAudit({
         utilisateur_id: req.user.id,
         action: 'CREATE_COMMANDE_RAVITAILLEMENT',
         table_cible: 'demandes_ravitaillement',
         enregistrement_id: demId,
-        details: { numero_commande: numCmd, csi_id, nb_lignes: lignes.length, priorite: pVal },
-        ip_adresse: req.ip
+        details: { numero_commande: numCmd, csi_id: targetCsiId, nb_lignes: lignes.length, priorite: pVal },
+        ip_adresse: req.ip,
+        client
       });
 
       return demRes.rows[0];
@@ -274,28 +307,68 @@ router.post('/', auth(), async (req, res) => {
 
 /**
  * PUT /api/ravitaillement/:id/statut
- * Traiter / Approuver / Expédier / Réceptionner la commande
- * PHASE 1 : ip_adresse corrigé dans logAudit
+ * Machine d'états stricte des commandes (Phase 2.7)
+ * DEMANDE → EN_REVUE → APPROUVE → EXPEDIE → LIVRE ; REJETE depuis DEMANDE/EN_REVUE
  */
-router.put('/:id/statut', auth(['admin', 'superviseur', 'agent']), async (req, res) => {
+router.put('/:id/statut', auth(), validateIdParam('id'), validate(schemas.ravitaillementStatutSchema), async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const { statut, reponse_notes, lignes_accorde } = req.body;
+    const { statut: nouveauStatut, reponse_notes, lignes_accorde } = req.body;
 
-    const validStatuts = ['DEMANDE', 'EN_REVUE', 'APPROUVE', 'EXPEDIE', 'LIVRE', 'REJETE'];
-    if (!validStatuts.includes(statut)) {
-      return res.status(400).json({ erreur: 'Statut de commande invalide' });
+    const { rows: cmdRows } = await pool.query(`
+      SELECT d.*, co.region_id AS csi_region_id
+      FROM demandes_ravitaillement d
+      JOIN csi c ON c.id = d.csi_id
+      JOIN communes co ON co.id = c.commune_id
+      WHERE d.id = $1
+    `, [id]);
+
+    if (!cmdRows.length) {
+      return res.status(404).json({ erreur: 'Commande non trouvée' });
     }
 
-    // Seuls admins et superviseurs peuvent approuver ou rejeter
-    if (['APPROUVE', 'EXPEDIE', 'REJETE'].includes(statut) && req.user.role === 'agent') {
-      return res.status(403).json({ erreur: 'Seuls les superviseurs et administrateurs peuvent valider ou expédier les commandes.' });
+    const commande = cmdRows[0];
+    const statutActuel = commande.statut;
+
+    // 1. Contrôle de validité de la transition dans la machine d'états
+    const transitionsPermises = TRANSITIONS_VALIDES[statutActuel] || [];
+    if (!transitionsPermises.includes(nouveauStatut)) {
+      return res.status(409).json({
+        erreur: `Transition de statut invalide : impossible de passer de '${statutActuel}' à '${nouveauStatut}'`
+      });
+    }
+
+    // 2. Contrôle des droits selon les rôles
+    if (req.user.role === 'agent') {
+      // Un agent ne peut passer QUE 'LIVRE' sur une commande 'EXPEDIE' de son propre CSI
+      if (nouveauStatut !== 'LIVRE') {
+        return res.status(403).json({
+          erreur: 'Un agent peut seulement confirmer la réception (statut LIVRE) d\'une commande.'
+        });
+      }
+      if (commande.csi_id !== req.user.csi_id) {
+        return res.status(403).json({
+          erreur: 'Vous ne pouvez réceptionner que les commandes destinées à votre propre CSI.'
+        });
+      }
+    } else if (req.user.role === 'superviseur') {
+      // Un superviseur ne gère que les commandes de sa région
+      if (commande.csi_region_id !== req.user.region_id) {
+        return res.status(403).json({
+          erreur: 'Cette commande n\'appartient pas à votre région d\'affectation.'
+        });
+      }
+      if (!['EN_REVUE', 'APPROUVE', 'EXPEDIE', 'REJETE'].includes(nouveauStatut)) {
+        return res.status(403).json({
+          erreur: 'Action non autorisée pour votre rôle sur cette commande.'
+        });
+      }
     }
 
     await withTransaction(async (client) => {
       let dateField = '';
-      if (statut === 'APPROUVE' || statut === 'EXPEDIE') dateField = ', date_traitement = NOW()';
-      if (statut === 'LIVRE') dateField = ', date_livraison = NOW()';
+      if (nouveauStatut === 'APPROUVE' || nouveauStatut === 'EXPEDIE') dateField = ', date_traitement = NOW()';
+      if (nouveauStatut === 'LIVRE') dateField = ', date_livraison = NOW()';
 
       await client.query(`
         UPDATE demandes_ravitaillement
@@ -305,7 +378,7 @@ router.put('/:id/statut', auth(['admin', 'superviseur', 'agent']), async (req, r
             modifie_le    = NOW()
             ${dateField}
         WHERE id = $4
-      `, [statut, reponse_notes || null, req.user.id, id]);
+      `, [nouveauStatut, reponse_notes || null, req.user.id, id]);
 
       if (lignes_accorde && Array.isArray(lignes_accorde)) {
         for (const l of lignes_accorde) {
@@ -318,18 +391,18 @@ router.put('/:id/statut', auth(['admin', 'superviseur', 'agent']), async (req, r
         }
       }
 
-      // PHASE 1 : ip: → ip_adresse:
       await logAudit({
         utilisateur_id: req.user.id,
         action: 'UPDATE_STATUT_RAVITAILLEMENT',
         table_cible: 'demandes_ravitaillement',
         enregistrement_id: id,
-        details: { nouveau_statut: statut, reponse_notes },
-        ip_adresse: req.ip
+        details: { ancien_statut: statutActuel, nouveau_statut: nouveauStatut, reponse_notes },
+        ip_adresse: req.ip,
+        client
       });
     });
 
-    res.json({ message: `Commande mise à jour avec le statut : ${statut}` });
+    res.json({ message: `Commande mise à jour avec succès avec le statut : ${nouveauStatut}` });
 
   } catch (err) {
     logger.error({ err }, 'Erreur mise à jour statut ravitaillement');

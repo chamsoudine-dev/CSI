@@ -6,48 +6,50 @@
  * - Consultations Postnatales (CPON)
  * - Statistiques de santé maternelle & infantile
  *
- * PHASE 1 (bugs bloquants) :
- *  - Corrigé : toutes les jointures SQL utilisaient c.region_id et c.commune
- *    alors que la table csi n'a pas ces colonnes.
- *    Correction : JOIN communes co ON co.id = c.commune_id
- *                 puis co.region_id et co.nom AS csi_commune
- *  - Corrigé : ip: req.ip → ip_adresse: req.ip dans logAudit (naissances)
- *  - Corrigé : injection SQL LIMIT interpolé → paramètre $n
+ * PHASE 2 :
+ * - Périmètre strict (agent = son csi, superviseur = sa région forcée, admin = libre)
+ * - Validation Joi sur POST naissances, cpn, cpon
+ * - Validation des paramètres :id (entiers)
  */
 
 const express = require('express');
 const router  = express.Router();
 const { pool } = require('../config/database');
 const { auth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
+const { checkCsiScope, validateIdParam } = require('../middleware/scope');
 const logger  = require('../utils/logger');
 const { logAudit } = require('../utils/audit');
 
 // ─── 1. Statistiques Globales Santé Maternelle & Néonatale ──────────────────────
 router.get('/stats', auth(), async (req, res) => {
   try {
-    const mois    = (req.query.mois || new Date().toISOString().slice(0, 7)).trim();
-    const regionId = req.query.region  ? parseInt(req.query.region, 10)  : null;
-    const csiId    = req.query.csi_id ? parseInt(req.query.csi_id, 10)  : null;
+    const mois = (req.query.mois || new Date().toISOString().slice(0, 7)).trim();
+    const regionId = req.query.region ? parseInt(req.query.region, 10) : null;
+    const csiId = req.query.csi_id ? parseInt(req.query.csi_id, 10) : null;
 
     let filterCsi = '';
     const params = [mois];
 
-    // PHASE 1 : filtre région via co.region_id (jointure communes)
-    if (req.user.role === 'agent' && req.user.csi_id) {
+    // Périmètre strict selon le rôle
+    if (req.user.role === 'agent') {
       params.push(req.user.csi_id);
       filterCsi = `AND c.id = $${params.length}`;
-    } else if (csiId) {
-      params.push(csiId);
-      filterCsi = `AND c.id = $${params.length}`;
-    } else if (req.user.role === 'superviseur' && req.user.region_id) {
+    } else if (req.user.role === 'superviseur') {
       params.push(req.user.region_id);
       filterCsi = `AND co.region_id = $${params.length}`;
-    } else if (regionId) {
-      params.push(regionId);
-      filterCsi = `AND co.region_id = $${params.length}`;
+    } else {
+      // Admin
+      if (csiId) {
+        params.push(csiId);
+        filterCsi = `AND c.id = $${params.length}`;
+      } else if (regionId) {
+        params.push(regionId);
+        filterCsi = `AND co.region_id = $${params.length}`;
+      }
     }
 
-    // Statistiques Naissances — jointure communes co ajoutée
+    // Statistiques Naissances
     const naissRes = await pool.query(`
       SELECT
         COUNT(*) AS total_naissances,
@@ -65,7 +67,7 @@ router.get('/stats', auth(), async (req, res) => {
       ${filterCsi}
     `, params);
 
-    // Statistiques CPN — jointure communes co ajoutée
+    // Statistiques CPN
     const cpnRes = await pool.query(`
       SELECT
         COUNT(*) AS total_cpn,
@@ -82,7 +84,7 @@ router.get('/stats', auth(), async (req, res) => {
       ${filterCsi}
     `, params);
 
-    // Statistiques CPON — jointure communes co ajoutée
+    // Statistiques CPON
     const cponRes = await pool.query(`
       SELECT
         COUNT(*) AS total_cpon,
@@ -118,12 +120,22 @@ router.get('/naissances', auth(), async (req, res) => {
     const conditions = [];
     const params = [];
 
-    if (req.user.role === 'agent' && req.user.csi_id) {
+    // Périmètre strict
+    if (req.user.role === 'agent') {
       params.push(req.user.csi_id);
       conditions.push(`n.csi_id = $${params.length}`);
-    } else if (csi_id) {
-      params.push(csi_id);
-      conditions.push(`n.csi_id = $${params.length}`);
+    } else if (req.user.role === 'superviseur') {
+      params.push(req.user.region_id);
+      conditions.push(`co.region_id = $${params.length}`);
+      if (csi_id) {
+        params.push(parseInt(csi_id, 10));
+        conditions.push(`n.csi_id = $${params.length}`);
+      }
+    } else {
+      if (csi_id) {
+        params.push(parseInt(csi_id, 10));
+        conditions.push(`n.csi_id = $${params.length}`);
+      }
     }
 
     if (mois) {
@@ -133,7 +145,6 @@ router.get('/naissances', auth(), async (req, res) => {
 
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
-    // PHASE 1 : LIMIT interpolé → paramètre $n ; jointures communes
     params.push(limit);
     const { rows } = await pool.query(`
       SELECT
@@ -159,16 +170,28 @@ router.get('/naissances', auth(), async (req, res) => {
   }
 });
 
-router.post('/naissances', auth(), async (req, res) => {
+router.post('/naissances', auth(), validate(schemas.naissanceSchema), async (req, res) => {
   try {
     const {
-      csi_id, nom_nouveau_ne, nom_mere, age_mere, sexe,
+      nom_nouveau_ne, nom_mere, age_mere, sexe,
       date_naissance, heure_naissance, poids_grammes, taille_cm,
       etat_naissance, type_accouchement, bcg_fait, vpo0_fait, observations
     } = req.body;
 
-    if (!csi_id || !nom_mere || !sexe || !date_naissance || !poids_grammes) {
-      return res.status(400).json({ erreur: 'CSI, nom de la mère, sexe, date et poids de naissance sont requis.' });
+    // 2.5 : csi_id forcé au csi_id de l'agent ; superviseur/admin seulement dans leur périmètre
+    let targetCsiId;
+    if (req.user.role === 'agent') {
+      targetCsiId = req.user.csi_id;
+    } else {
+      targetCsiId = req.body.csi_id;
+      const allowed = await checkCsiScope(targetCsiId, req.user);
+      if (!allowed) {
+        return res.status(403).json({ erreur: 'Accès non autorisé à ce CSI' });
+      }
+    }
+
+    if (!targetCsiId) {
+      return res.status(400).json({ erreur: 'CSI obligatoire' });
     }
 
     const { rows } = await pool.query(`
@@ -179,19 +202,18 @@ router.post('/naissances', auth(), async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
       RETURNING *
     `, [
-      csi_id, req.user.id, nom_nouveau_ne || null, nom_mere, age_mere || null, sexe,
+      targetCsiId, req.user.id, nom_nouveau_ne || null, nom_mere, age_mere || null, sexe,
       date_naissance, heure_naissance || null, parseInt(poids_grammes, 10), taille_cm || null,
       etat_naissance || 'VIVANT', type_accouchement || 'EUTOCIQUE',
       bcg_fait !== false, vpo0_fait !== false, observations || null
     ]);
 
-    // PHASE 1 : ip: → ip_adresse:
     await logAudit({
       utilisateur_id: req.user.id,
       action: 'ENREGISTREMENT_NAISSANCE',
       table_cible: 'registre_naissances',
       enregistrement_id: rows[0].id,
-      details: { csi_id, sexe, poids: poids_grammes, etat: etat_naissance },
+      details: { csi_id: targetCsiId, sexe, poids: poids_grammes, etat: etat_naissance },
       ip_adresse: req.ip
     });
 
@@ -211,12 +233,22 @@ router.get('/cpn', auth(), async (req, res) => {
     const conditions = [];
     const params = [];
 
-    if (req.user.role === 'agent' && req.user.csi_id) {
+    // Périmètre strict
+    if (req.user.role === 'agent') {
       params.push(req.user.csi_id);
       conditions.push(`cpn.csi_id = $${params.length}`);
-    } else if (csi_id) {
-      params.push(csi_id);
-      conditions.push(`cpn.csi_id = $${params.length}`);
+    } else if (req.user.role === 'superviseur') {
+      params.push(req.user.region_id);
+      conditions.push(`co.region_id = $${params.length}`);
+      if (csi_id) {
+        params.push(parseInt(csi_id, 10));
+        conditions.push(`cpn.csi_id = $${params.length}`);
+      }
+    } else {
+      if (csi_id) {
+        params.push(parseInt(csi_id, 10));
+        conditions.push(`cpn.csi_id = $${params.length}`);
+      }
     }
 
     if (mois) {
@@ -226,7 +258,6 @@ router.get('/cpn', auth(), async (req, res) => {
 
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
-    // PHASE 1 : LIMIT interpolé → paramètre ; jointures communes
     params.push(limit);
     const { rows } = await pool.query(`
       SELECT
@@ -252,16 +283,28 @@ router.get('/cpn', auth(), async (req, res) => {
   }
 });
 
-router.post('/cpn', auth(), async (req, res) => {
+router.post('/cpn', auth(), validate(schemas.cpnSchema), async (req, res) => {
   try {
     const {
-      csi_id, nom_femme, age, date_consultation, type_cpn, terme_semaines,
+      nom_femme, age, date_consultation, type_cpn, terme_semaines,
       tpi_paludisme, vat_tetanos, fer_acide_folique, tension_arterielle,
       grossesse_a_risque, motif_risque, observations
     } = req.body;
 
-    if (!csi_id || !nom_femme || !date_consultation || !type_cpn) {
-      return res.status(400).json({ erreur: 'CSI, nom de la femme, date et type de CPN sont obligatoires.' });
+    // 2.5 : csi_id forcé au csi_id de l'agent ; superviseur/admin selon périmètre
+    let targetCsiId;
+    if (req.user.role === 'agent') {
+      targetCsiId = req.user.csi_id;
+    } else {
+      targetCsiId = req.body.csi_id;
+      const allowed = await checkCsiScope(targetCsiId, req.user);
+      if (!allowed) {
+        return res.status(403).json({ erreur: 'Accès non autorisé à ce CSI' });
+      }
+    }
+
+    if (!targetCsiId) {
+      return res.status(400).json({ erreur: 'CSI requis' });
     }
 
     const { rows } = await pool.query(`
@@ -272,11 +315,20 @@ router.post('/cpn', auth(), async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING *
     `, [
-      csi_id, req.user.id, nom_femme, age || null, date_consultation, type_cpn,
+      targetCsiId, req.user.id, nom_femme, age || null, date_consultation, type_cpn,
       terme_semaines || null, tpi_paludisme === true, vat_tetanos === true,
       fer_acide_folique !== false, tension_arterielle || null,
       grossesse_a_risque === true, motif_risque || null, observations || null
     ]);
+
+    await logAudit({
+      utilisateur_id: req.user.id,
+      action: 'CREATE_CPN',
+      table_cible: 'consultations_prenatales',
+      enregistrement_id: rows[0].id,
+      details: { csi_id: targetCsiId, type_cpn },
+      ip_adresse: req.ip
+    });
 
     res.status(201).json({ message: 'Consultation prénatale enregistrée avec succès', cpn: rows[0] });
 
@@ -294,12 +346,22 @@ router.get('/cpon', auth(), async (req, res) => {
     const conditions = [];
     const params = [];
 
-    if (req.user.role === 'agent' && req.user.csi_id) {
+    // Périmètre strict
+    if (req.user.role === 'agent') {
       params.push(req.user.csi_id);
       conditions.push(`cpon.csi_id = $${params.length}`);
-    } else if (csi_id) {
-      params.push(csi_id);
-      conditions.push(`cpon.csi_id = $${params.length}`);
+    } else if (req.user.role === 'superviseur') {
+      params.push(req.user.region_id);
+      conditions.push(`co.region_id = $${params.length}`);
+      if (csi_id) {
+        params.push(parseInt(csi_id, 10));
+        conditions.push(`cpon.csi_id = $${params.length}`);
+      }
+    } else {
+      if (csi_id) {
+        params.push(parseInt(csi_id, 10));
+        conditions.push(`cpon.csi_id = $${params.length}`);
+      }
     }
 
     if (mois) {
@@ -309,7 +371,6 @@ router.get('/cpon', auth(), async (req, res) => {
 
     const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
 
-    // PHASE 1 : LIMIT interpolé → paramètre ; jointures communes
     params.push(limit);
     const { rows } = await pool.query(`
       SELECT
@@ -335,16 +396,28 @@ router.get('/cpon', auth(), async (req, res) => {
   }
 });
 
-router.post('/cpon', auth(), async (req, res) => {
+router.post('/cpon', auth(), validate(schemas.cponSchema), async (req, res) => {
   try {
     const {
-      csi_id, nom_femme, date_consultation, type_cpon,
+      nom_femme, date_consultation, type_cpon,
       etat_mere, etat_bebe, allaitement_exclusif, contraception_postpartum,
       complications, observations
     } = req.body;
 
-    if (!csi_id || !nom_femme || !date_consultation || !type_cpon) {
-      return res.status(400).json({ erreur: 'CSI, nom de la femme, date et type de CPON sont requis.' });
+    // 2.5 : csi_id forcé au csi_id de l'agent ; superviseur/admin selon périmètre
+    let targetCsiId;
+    if (req.user.role === 'agent') {
+      targetCsiId = req.user.csi_id;
+    } else {
+      targetCsiId = req.body.csi_id;
+      const allowed = await checkCsiScope(targetCsiId, req.user);
+      if (!allowed) {
+        return res.status(403).json({ erreur: 'Accès non autorisé à ce CSI' });
+      }
+    }
+
+    if (!targetCsiId) {
+      return res.status(400).json({ erreur: 'CSI requis' });
     }
 
     const { rows } = await pool.query(`
@@ -355,10 +428,19 @@ router.post('/cpon', auth(), async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
       RETURNING *
     `, [
-      csi_id, req.user.id, nom_femme, date_consultation, type_cpon,
+      targetCsiId, req.user.id, nom_femme, date_consultation, type_cpon,
       etat_mere || 'BON', etat_bebe || 'BON', allaitement_exclusif !== false,
       contraception_postpartum === true, complications || null, observations || null
     ]);
+
+    await logAudit({
+      utilisateur_id: req.user.id,
+      action: 'CREATE_CPON',
+      table_cible: 'consultations_postnatales',
+      enregistrement_id: rows[0].id,
+      details: { csi_id: targetCsiId, type_cpon },
+      ip_adresse: req.ip
+    });
 
     res.status(201).json({ message: 'Consultation postnatale enregistrée avec succès', cpon: rows[0] });
 

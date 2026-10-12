@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 const { auth } = require('../middleware/auth');
+const { checkCsiScope } = require('../middleware/scope');
 const logger = require('../utils/logger');
 
 const wrap = f => (req, res) => f(req, res).catch(e => {
@@ -32,9 +33,10 @@ router.get('/export/rapport', auth(), wrap(async (req, res) => {
   const m = moisDate(mois);
   if (!csi_id || !m) return res.status(400).json({ erreur: 'csi_id et mois requis' });
 
-  // Contrôle d'accès agent
-  if (req.user.role === 'agent' && req.user.csi_id && req.user.csi_id !== parseInt(csi_id)) {
-    return res.status(403).json({ erreur: 'Accès non autorisé' });
+  // Contrôle d'accès strict selon le périmètre (Phase 2.3)
+  const allowed = await checkCsiScope(csi_id, req.user);
+  if (!allowed) {
+    return res.status(403).json({ erreur: 'Accès non autorisé à ce CSI' });
   }
 
   const { rows: csiInfo } = await pool.query(
@@ -87,8 +89,8 @@ router.get('/export/rapport', auth(), wrap(async (req, res) => {
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.setHeader('BOM', '\uFEFF'); // BOM pour Excel
-  res.send('\uFEFF' + csv); // BOM UTF-8 pour Excel
+  res.setHeader('BOM', '\uFEFF');
+  res.send('\uFEFF' + csv);
 }));
 
 // ─── GET /api/export/stats ── Export CSV des stats ────────────────────────────
@@ -98,8 +100,8 @@ router.get('/export/stats', auth(['admin', 'superviseur']), wrap(async (req, res
   const moisLabel = mois || new Date().toISOString().slice(0, 7);
   const { role, region_id: userRegion } = req.user;
 
-  // Un superviseur est restreint à sa propre région
-  const regionFilter = role === 'superviseur' && userRegion ? userRegion : (region ? parseInt(region) : null);
+  // Un superviseur est strictement restreint à sa propre région
+  const regionFilter = role === 'superviseur' ? userRegion : (region ? parseInt(region, 10) : null);
 
   const queryParams = [m];
   let filterSql = '';

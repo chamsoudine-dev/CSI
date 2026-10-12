@@ -56,8 +56,10 @@ router.get('/csi', wrap(async (req, res) => {
   });
 }));
 
+const { validateIdParam } = require('../middleware/scope');
+
 // ─── GET /api/csi/:id ── Public ───────────────────────────────────────────────
-router.get('/csi/:id', wrap(async (req, res) => {
+router.get('/csi/:id', validateIdParam('id'), wrap(async (req, res) => {
   const { rows } = await pool.query(
     `SELECT s.id, s.nom, s.latitude, s.longitude, s.services, s.actif, s.cree_le,
             c.nom AS commune, c.type, g.nom AS region, g.id AS region_id
@@ -110,7 +112,7 @@ router.post('/csi', auth(['admin', 'superviseur']), validate(schemas.csiSchema),
 }));
 
 // ─── PUT /api/csi/:id ── Admin uniquement ────────────────────────────────────
-router.put('/csi/:id', auth(['admin']), wrap(async (req, res) => {
+router.put('/csi/:id', auth(['admin']), validateIdParam('id'), wrap(async (req, res) => {
   const { id } = req.params;
   const { nom, latitude, longitude, services, actif } = req.body;
 
@@ -146,7 +148,7 @@ router.put('/csi/:id', auth(['admin']), wrap(async (req, res) => {
 }));
 
 // ─── DELETE /api/csi/:id ── Soft delete, admin uniquement ────────────────────
-router.delete('/csi/:id', auth(['admin']), wrap(async (req, res) => {
+router.delete('/csi/:id', auth(['admin']), validateIdParam('id'), wrap(async (req, res) => {
   const { rows } = await pool.query(
     'UPDATE csi SET actif = FALSE WHERE id = $1 RETURNING id, nom',
     [req.params.id]
