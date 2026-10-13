@@ -1324,6 +1324,162 @@ async function renderDashboard() {
   const r = el.dataset.r || '';
 
   try {
+    if (state.user?.role === 'agent') {
+      const db = await api(`/dashboard/agent?mois=${m}`).catch(() => null);
+      if (db) {
+        el.innerHTML = `
+          <div class="row" style="margin-bottom:20px;align-items:center">
+            <div>
+              <h2 style="font-size:1.4rem;font-weight:800;letter-spacing:-0.02em;display:flex;align-items:center;gap:10px">
+                <img src="/img/logo.png" style="width:36px;height:36px;border-radius:50%"> 🏥 Tableau de Bord — ${esc(db.csi?.nom || 'Mon CSI')}
+              </h2>
+              <p class="text-muted" style="font-size:0.84rem">Commune de ${esc(db.csi?.commune || '—')} (${esc(db.csi?.region || '—')}) — Période : ${db.mois}</p>
+            </div>
+            <div class="flex ml-auto">
+              <label class="field">
+                <span>Période</span>
+                <input type="month" value="${m}" id="dm" max="${mois0}">
+              </label>
+            </div>
+          </div>
+
+          <div class="stat-grid" style="margin-bottom:20px">
+            <div class="stat-card">
+              <div class="stat-label">STATUT DU RAPPORT DU MOIS</div>
+              <div class="stat-num" style="font-size:1.25rem">${db.rapport ? (db.rapport.statut === 'VALIDE' ? '✅ Validé' : db.rapport.statut === 'SOUMIS' ? '📤 Soumis' : db.rapport.statut === 'RENVOYE' ? '↩️ Renvoyé' : '✏️ Brouillon') : '⚪ Non initié'}</div>
+              <div class="text-muted" style="font-size:0.75rem">${db.rapport?.valide_le ? 'Validé le ' + new Date(db.rapport.valide_le).toLocaleDateString('fr-FR') : 'Cliquez sur Saisie pour éditer'}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">PATIENTS ENREGISTRÉS</div>
+              <div class="stat-num" style="color:var(--accent-green)">${db.patients_total}</div>
+              <div class="text-muted" style="font-size:0.75rem">Dossiers médicaux rattachés</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">NAISSANCES CE MOIS</div>
+              <div class="stat-num" style="color:var(--accent-indigo)">${db.maternite.total}</div>
+              <div class="text-muted" style="font-size:0.75rem">${db.maternite.vivants} vivants (${db.maternite.faible_poids} < 2,5kg)</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">COMMANDES EN COURS</div>
+              <div class="stat-num" style="color:var(--accent-amber)">${db.commandes_en_cours.length}</div>
+              <div class="text-muted" style="font-size:0.75rem">Ravitaillement en traitement</div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="card" style="flex:1;min-width:300px">
+              <div class="card-header"><div class="card-title">📦 Stocks Faibles / Critiques (≤ 10 unités)</div></div>
+              ${db.stock_critique?.length ? `
+                <div class="tw"><table>
+                  <thead><tr><th>Médicament</th><th style="text-align:right">Stock Restant</th></tr></thead>
+                  <tbody>${db.stock_critique.map(st => `<tr>
+                    <td><strong>${esc(st.medicament_nom)}</strong></td>
+                    <td style="text-align:right;font-weight:700;color:var(--accent-rose)">${st.quantite}</td>
+                  </tr>`).join('')}</tbody>
+                </table></div>
+              ` : '<p class="text-muted" style="padding:16px">✅ Aucun stock critique détecté pour ce CSI.</p>'}
+              <div style="margin-top:12px;text-align:right">
+                <button class="btn btn-secondary btn-sm" onclick="navigateView('ravitaillement')">Aller au Ravitaillement ➔</button>
+              </div>
+            </div>
+
+            <div class="card" style="flex:1;min-width:300px">
+              <div class="card-header"><div class="card-title">🚚 Dernières Demandes de Ravitaillement</div></div>
+              ${db.commandes_en_cours?.length ? `
+                <div class="tw"><table>
+                  <thead><tr><th>N° Commande</th><th>Statut</th><th>Date</th></tr></thead>
+                  <tbody>${db.commandes_en_cours.map(c => `<tr>
+                    <td class="text-mono" style="font-weight:700">${esc(c.numero_commande)}</td>
+                    <td><span class="role-pill role-superviseur" style="font-size:0.72rem">${esc(c.statut)}</span></td>
+                    <td class="text-muted" style="font-size:0.78rem">${new Date(c.cree_le).toLocaleDateString('fr-FR')}</td>
+                  </tr>`).join('')}</tbody>
+                </table></div>
+              ` : '<p class="text-muted" style="padding:16px">Aucune commande de ravitaillement en cours.</p>'}
+            </div>
+          </div>
+        `;
+        $('#dm').onchange = e => { el.dataset.m = e.target.value; renderDashboard(); };
+        return;
+      }
+    } else if (state.user?.role === 'superviseur') {
+      const dbSup = await api(`/dashboard/superviseur?mois=${m}`).catch(() => null);
+      if (dbSup) {
+        el.innerHTML = `
+          <div class="row" style="margin-bottom:20px;align-items:center">
+            <div>
+              <h2 style="font-size:1.4rem;font-weight:800;letter-spacing:-0.02em;display:flex;align-items:center;gap:10px">
+                <img src="/img/logo.png" style="width:36px;height:36px;border-radius:50%"> 📊 Tableau de Bord Régional — ${esc(dbSup.region?.nom || 'Ma Région')}
+              </h2>
+              <p class="text-muted" style="font-size:0.84rem">Supervision sanitaire, validation des rapports et gestion des dotations</p>
+            </div>
+            <div class="flex ml-auto">
+              <label class="field">
+                <span>Période</span>
+                <input type="month" value="${m}" id="dm" max="${mois0}">
+              </label>
+            </div>
+          </div>
+
+          <div class="stat-grid" style="margin-bottom:20px">
+            <div class="stat-card">
+              <div class="stat-label">CSI DE LA RÉGION</div>
+              <div class="stat-num">${dbSup.stats.csi_total}</div>
+              <div class="text-muted" style="font-size:0.75rem">Centres actifs supervisés</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">TAUX DE COUVERTURE</div>
+              <div class="stat-num" style="color:var(--accent-green)">${dbSup.stats.taux_couverture}%</div>
+              <div class="text-muted" style="font-size:0.75rem">${dbSup.stats.csi_avec_rapport} / ${dbSup.stats.csi_total} rapports déposés</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">RAPPORTS À VALIDER</div>
+              <div class="stat-num" style="color:var(--accent-amber)">${dbSup.rapports_a_valider.length}</div>
+              <div class="text-muted" style="font-size:0.75rem">En attente de revue superviseur</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">COMMANDES À ALLOUER</div>
+              <div class="stat-num" style="color:var(--accent-rose)">${dbSup.commandes_a_valider.length}</div>
+              <div class="text-muted" style="font-size:0.75rem">Demandes de ravitaillement</div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="card" style="flex:1.2;min-width:320px">
+              <div class="card-header">
+                <div class="card-title">📋 Rapports Mensuels en Attente de Validation (${dbSup.rapports_a_valider.length})</div>
+              </div>
+              ${dbSup.rapports_a_valider?.length ? `
+                <div class="tw"><table>
+                  <thead><tr><th>CSI</th><th>Commune</th><th>Soumis le</th><th>Action</th></tr></thead>
+                  <tbody>${dbSup.rapports_a_valider.map(r => `<tr>
+                    <td><strong>${esc(r.csi_nom)}</strong></td>
+                    <td class="text-muted">${esc(r.commune)}</td>
+                    <td class="text-muted" style="font-size:0.78rem">${new Date(r.soumis_le).toLocaleDateString('fr-FR')}</td>
+                    <td><button class="btn btn-primary btn-sm" onclick="goToSaisieForCsi(${r.csi_id}, ${dbSup.region?.id})">🔍 Examiner</button></td>
+                  </tr>`).join('')}</tbody>
+                </table></div>
+              ` : '<p class="text-muted" style="padding:16px">✅ Aucun rapport en attente de validation pour ce mois.</p>'}
+            </div>
+
+            <div class="card" style="flex:0.8;min-width:280px">
+              <div class="card-header"><div class="card-title">🩺 Top Pathologies Notifiées</div></div>
+              ${dbSup.top_pathologies?.length ? `
+                <div class="tw"><table>
+                  <thead><tr><th>Pathologie / Motif</th><th style="text-align:right">Cas</th></tr></thead>
+                  <tbody>${dbSup.top_pathologies.map(tp => `<tr>
+                    <td><strong>${esc(tp.motif)}</strong></td>
+                    <td style="text-align:right;font-weight:700;color:var(--accent-green)">${tp.total}</td>
+                  </tr>`).join('')}</tbody>
+                </table></div>
+              ` : '<p class="text-muted" style="padding:16px">Données cliniques indisponibles.</p>'}
+            </div>
+          </div>
+        `;
+        $('#dm').onchange = e => { el.dataset.m = e.target.value; renderDashboard(); };
+        return;
+      }
+    }
+
     let matStats = null, matError = false;
     let ravStats = null, ravError = false;
 

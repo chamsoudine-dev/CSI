@@ -118,6 +118,7 @@ const unfpaRoutes         = require('./src/routes/unfpa');
 const referentielsRoutes  = require('./src/routes/referentiels');
 const adminRoutes         = require('./src/routes/admin');
 const alertesRoutes       = require('./src/routes/alertes');
+const dashboardRoutes     = require('./src/routes/dashboard');
 
 app.use('/api', authRoutes);
 app.use('/api', csiRoutes);
@@ -132,6 +133,7 @@ app.use('/api/unfpa', unfpaRoutes);
 app.use('/api/referentiels', referentielsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/alertes', alertesRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // ─── Fallback SPA ─────────────────────────────────────────────────────────────
 app.get('*', (req, res) => {
