@@ -977,8 +977,13 @@ dialog::backdrop {
     <button data-v="enquete" id="nav-enquete">📝 Enquête UNFPA</button>
     <button data-v="catalogue">💊 Catalogue Médicaments</button>
     <button data-v="ravitaillement">🚚 Ravitaillement & Stocks</button>
+    <button data-v="stock" class="hid" id="nav-stock">📦 Mon Stock</button>
     <button data-v="maternite">👶 Maternité & Néonatal</button>
+    <button data-v="alertes" class="hid" id="nav-alertes">🚨 Alertes</button>
     <button data-v="utilisateurs" class="hid" id="nav-users">👥 Gestion Utilisateurs</button>
+    <button data-v="audit" class="hid" id="nav-audit">📜 Audit</button>
+    <button data-v="parametres" class="hid" id="nav-parametres">⚙️ Paramètres</button>
+    <button data-v="motdepasse" id="nav-mdp">🔑 Mon mot de passe</button>
   </nav>
 
   <!-- Contenu Principal -->
@@ -992,8 +997,13 @@ dialog::backdrop {
     <section id="enquete" class="hid"></section>
     <section id="catalogue" class="hid"></section>
     <section id="ravitaillement" class="hid"></section>
+    <section id="stock" class="hid"></section>
     <section id="maternite" class="hid"></section>
+    <section id="alertes" class="hid"></section>
     <section id="utilisateurs" class="hid"></section>
+    <section id="audit" class="hid"></section>
+    <section id="parametres" class="hid"></section>
+    <section id="motdepasse" class="hid"></section>
   </main>
 </div>
 
@@ -1178,18 +1188,45 @@ function updateUI() {
       if (navTb) navTb.textContent = '🏥 Mon CSI (Tableau de bord)';
       const pTab = $('#nav-patients');
       if (pTab) pTab.textContent = '🧑‍⚕️ Patients de mon CSI';
+      // Agent : voir son stock
+      const navStock = $('#nav-stock');
+      if (navStock) navStock.classList.remove('hid');
+      const navAlertes = $('#nav-alertes');
+      if (navAlertes) navAlertes.classList.add('hid');
+      const navAudit = $('#nav-audit');
+      if (navAudit) navAudit.classList.add('hid');
+      const navParam = $('#nav-parametres');
+      if (navParam) navParam.classList.add('hid');
     } else if (state.user.role === 'superviseur') {
       navUsers.classList.add('hid');
       if (navCarte) navCarte.classList.remove('hid');
       if (navTb) navTb.textContent = '📊 Tableau de Bord Régional';
       const pTab = $('#nav-patients');
       if (pTab) pTab.textContent = '🧑‍⚕️ Registre Régional Patients';
+      // Superviseur : voir alertes
+      const navAlertes = $('#nav-alertes');
+      if (navAlertes) navAlertes.classList.remove('hid');
+      const navStock = $('#nav-stock');
+      if (navStock) navStock.classList.add('hid');
+      const navAudit = $('#nav-audit');
+      if (navAudit) navAudit.classList.add('hid');
+      const navParam = $('#nav-parametres');
+      if (navParam) navParam.classList.add('hid');
     } else {
       navUsers.classList.remove('hid');
       if (navCarte) navCarte.classList.remove('hid');
       if (navTb) navTb.textContent = '📊 Tableau de bord National';
       const pTab = $('#nav-patients');
       if (pTab) pTab.textContent = '🧑‍⚕️ Registre National Patients';
+      // Admin : tout
+      const navAlertes = $('#nav-alertes');
+      if (navAlertes) navAlertes.classList.remove('hid');
+      const navAudit = $('#nav-audit');
+      if (navAudit) navAudit.classList.remove('hid');
+      const navParam = $('#nav-parametres');
+      if (navParam) navParam.classList.remove('hid');
+      const navStock = $('#nav-stock');
+      if (navStock) navStock.classList.add('hid');
     }
     render();
   } else {
@@ -1264,8 +1301,13 @@ async function render() {
       enquete: renderEnquete,
       catalogue: renderCatalogue,
       ravitaillement: renderRavitaillement,
+      stock: renderStock,
       maternite: renderMaternite,
-      utilisateurs: renderUtilisateurs
+      alertes: renderAlertes,
+      utilisateurs: renderUtilisateurs,
+      audit: renderAudit,
+      parametres: renderParametres,
+      motdepasse: renderMotDePasse
     };
     await views[curView()]?.();
   } catch(e) { notify(e.message, 'error'); }
@@ -2112,8 +2154,25 @@ async function showPatientForm(existingPatient = null) {
         await api(`/patients/${existingPatient.id}`, { method: 'PUT', body });
         notify('Fiche patient modifiée avec succès.', 'success');
       } else {
-        const nouveau = await api('/patients', { method: 'POST', body });
-        notify(`Patient ${nouveau.nom} enregistré ! Numéro : ${nouveau.numero_patient}`, 'success');
+        try {
+          const nouveau = await api('/patients', { method: 'POST', body });
+          notify(`Patient ${nouveau.nom} enregistré ! Numéro : ${nouveau.numero_patient}`, 'success');
+        } catch(err) {
+          // Doublon détecté (409)
+          if (err.message && err.message.includes('doublon')) {
+            const forcer = await confirm('Doublon détecté',
+              `Un patient similaire existe déjà (même nom/prénom/date naissance/téléphone). Voulez-vous forcer l'inscription quand même ?`);
+            if (forcer) {
+              body.ignorer_doublon = true;
+              const nouveau = await api('/patients', { method: 'POST', body });
+              notify(`Patient inscrit (doublon ignoré). Numéro : ${nouveau.numero_patient}`, 'warn');
+            } else {
+              btn.disabled = false;
+              btn.textContent = isEdit ? 'Enregistrer les modifications' : 'Créer le Dossier Patient';
+              return;
+            }
+          } else { throw err; }
+        }
       }
       az.innerHTML = '';
       await loadPatientsList();
@@ -2660,10 +2719,32 @@ async function renderSaisie() {
     if ($('#recap-vacc')) $('#recap-vacc').textContent = totalVacc.toLocaleString('fr-FR');
 
     let totalRuptures = 0;
+    let stockWarnings = [];
     PRODUITS.forEach(p => {
       totalRuptures += parseInt($(`[data-k="m|${p}|jours_rupture"]`)?.value) || 0;
+      // Vérification cohérence stock
+      const debut  = parseInt($(`[data-k="m|${p}|stock_debut"]`)?.value) || 0;
+      const entrees= parseInt($(`[data-k="m|${p}|entrees"]`)?.value) || 0;
+      const sorties= parseInt($(`[data-k="m|${p}|sorties"]`)?.value) || 0;
+      const fin    = parseInt($(`[data-k="m|${p}|stock_fin"]`)?.value) || 0;
+      const attendu = debut + entrees - sorties;
+      if (fin !== attendu && (debut || entrees || sorties || fin)) {
+        stockWarnings.push(`${p} : stock fin attendu ${attendu}, saisi ${fin}`);
+      }
     });
     if ($('#recap-ruptures')) $('#recap-ruptures').textContent = `${totalRuptures} j`;
+    // Affichage avertissement cohérence
+    let stockWarnEl = $('#stock-warn');
+    if (!stockWarnEl) {
+      const div = document.createElement('div'); div.id = 'stock-warn'; div.style.margin = '8px 0';
+      $('#recap-ruptures')?.closest('.stat-grid')?.after(div);
+      stockWarnEl = div;
+    }
+    if (stockWarnings.length && stockWarnEl) {
+      stockWarnEl.innerHTML = `<div class="alert alert-warn" style="font-size:0.82rem">⚠️ Incohérence stock : ${stockWarnings.map(esc).join(' | ')}</div>`;
+    } else if (stockWarnEl) {
+      stockWarnEl.innerHTML = '';
+    }
   };
 
   const saveDraft = () => {
@@ -2696,9 +2777,20 @@ async function renderSaisie() {
     } catch(e) { return false; }
   };
 
+  const STATUT_BADGE = {
+    BROUILLON: '<span class="role-pill role-agent">✏️ Brouillon</span>',
+    SOUMIS:    '<span class="role-pill role-superviseur">📤 Soumis</span>',
+    VALIDE:    '<span class="role-pill" style="background:var(--accent-green-glow);color:var(--accent-green)">✅ Validé</span>',
+    RENVOYE:   '<span class="role-pill" style="background:var(--accent-rose-glow);color:var(--accent-rose)">↩️ Renvoyé</span>'
+  };
+
+  let rapportId = null;
+  let rapportStatut = null;
+
   const loadRapport = async () => {
     $$('#sf input[type=number]').forEach(i => i.value = '0');
     $('#rapport-status').innerHTML = '';
+    rapportId = null; rapportStatut = null;
     if (!$('#sc').value) return;
 
     const csiId = $('#sc').value;
@@ -2726,7 +2818,87 @@ async function renderSaisie() {
         return;
       }
 
-      $('#rapport-status').innerHTML = '<div class="alert alert-warn">✏️ Rapport déjà transmis pour ce mois. Les modifications mettront à jour le registre officiel.</div>';
+      rapportId = d.id;
+      rapportStatut = d.statut || 'BROUILLON';
+      const estValide = rapportStatut === 'VALIDE';
+      const estAgent  = state.user?.role === 'agent';
+      const peutSoumettre = ['BROUILLON','RENVOYE'].includes(rapportStatut) && (estAgent || isSuperviseur());
+      const peutValider   = rapportStatut === 'SOUMIS' && isSuperviseur();
+      const peutRenvoyer  = rapportStatut === 'SOUMIS' && isSuperviseur();
+      const peutRouvrir   = estValide && isAdmin();
+      const enRetard      = d.en_retard ? ' &nbsp;<span class="role-pill" style="background:var(--accent-rose-glow);color:var(--accent-rose)">⏰ En retard</span>' : '';
+
+      // Verrouiller les champs si validé et agent
+      const verrou = estValide && estAgent;
+      $$('#sf input[type=number]').forEach(i => i.disabled = verrou);
+      $('#save-rapport-btn').disabled = verrou || rapportStatut === 'VALIDE';
+      if (verrou) $('#save-rapport-btn').style.display = 'none';
+      else $('#save-rapport-btn').style.display = '';
+
+      let statusHtml = `<div class="alert ${estValide ? 'alert-success' : rapportStatut === 'RENVOYE' ? 'alert-error' : 'alert-warn'}"
+          style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          ${STATUT_BADGE[rapportStatut] || rapportStatut}${enRetard}
+          ${d.soumis_le ? `<span class="text-muted" style="font-size:0.78rem;margin-left:8px">Soumis le ${new Date(d.soumis_le).toLocaleDateString('fr-FR')}</span>` : ''}
+          ${d.valide_le ? `<span class="text-muted" style="font-size:0.78rem;margin-left:8px">Validé le ${new Date(d.valide_le).toLocaleDateString('fr-FR')} par ${esc(d.valide_par_nom||'')}</span>` : ''}
+        </div>
+        <div class="flex">
+          ${peutSoumettre ? `<button class="btn btn-primary btn-sm" id="btn-soumettre-rapport">📤 Soumettre</button>` : ''}
+          ${peutValider   ? `<button class="btn btn-primary btn-sm" id="btn-valider-rapport" style="background:var(--accent-green)">✅ Valider</button>` : ''}
+          ${peutRenvoyer  ? `<button class="btn btn-ghost btn-sm" id="btn-renvoyer-rapport" style="color:var(--accent-rose)">↩️ Renvoyer</button>` : ''}
+          ${peutRouvrir   ? `<button class="btn btn-ghost btn-sm" id="btn-rouvrir-rapport">🔓 Rouvrir</button>` : ''}
+        </div>
+      </div>`;
+
+      if (rapportStatut === 'RENVOYE' && d.commentaire_validation) {
+        statusHtml += `<div class="alert alert-error" style="margin-top:4px">
+          <strong>Commentaire du superviseur :</strong> ${esc(d.commentaire_validation)}</div>`;
+      }
+      if (verrou) {
+        statusHtml += `<div class="alert alert-info" style="margin-top:4px">🔒 Rapport validé — modification verrouillée. Contactez votre superviseur.</div>`;
+      }
+      $('#rapport-status').innerHTML = statusHtml;
+
+      // Boutons actions
+      const btnSoumettre = $('#btn-soumettre-rapport');
+      if (btnSoumettre) btnSoumettre.onclick = async () => {
+        if (!await confirm('Soumettre le rapport', 'Soumettre ce rapport au superviseur pour validation ?')) return;
+        try {
+          await api(`/rapport/${rapportId}/soumettre`, { method: 'POST' });
+          notify('Rapport soumis avec succès.', 'success');
+          await loadRapport();
+        } catch(e) { notify(e.message, 'error'); }
+      };
+      const btnValider = $('#btn-valider-rapport');
+      if (btnValider) btnValider.onclick = async () => {
+        if (!await confirm('Valider le rapport', 'Valider ce rapport ? Le stock courant du CSI sera mis à jour.')) return;
+        try {
+          await api(`/rapport/${rapportId}/valider`, { method: 'POST' });
+          notify('Rapport validé. Stock mis à jour.', 'success');
+          await loadRapport();
+        } catch(e) { notify(e.message, 'error'); }
+      };
+      const btnRenvoyer = $('#btn-renvoyer-rapport');
+      if (btnRenvoyer) btnRenvoyer.onclick = async () => {
+        const com = prompt('Commentaire de renvoi (obligatoire) :');
+        if (!com) return;
+        try {
+          await api(`/rapport/${rapportId}/renvoyer`, { method: 'POST', body: { commentaire: com } });
+          notify('Rapport renvoyé à l'agent.', 'warn');
+          await loadRapport();
+        } catch(e) { notify(e.message, 'error'); }
+      };
+      const btnRouvrir = $('#btn-rouvrir-rapport');
+      if (btnRouvrir) btnRouvrir.onclick = async () => {
+        if (!await confirm('Rouvrir le rapport', 'Rouvrir ce rapport validé pour modification ?')) return;
+        try {
+          await api(`/rapport/${rapportId}/rouvrir`, { method: 'POST' });
+          notify('Rapport rouvert.', 'info');
+          await loadRapport();
+        } catch(e) { notify(e.message, 'error'); }
+      };
+
+      // Charger les données
       const set = (k, v) => { const i = $(`[data-k="${k}"]`); if (i) i.value = v; };
       d.consultations.forEach(c => set(['c',c.motif,c.tranche,c.sexe].join('|'), c.nombre));
       d.vaccinations.forEach(v => set('v|'+v.vaccin, v.doses));
@@ -2885,13 +3057,42 @@ let unfpaTab = 'plan';
 let unfpaCur = null;
 let unfpaSi = 0;
 
-function loadUnfpaDB() {
+async function loadUnfpaDB() {
+  // Charger depuis l'API si connecté, fallback localStorage
+  if (isLogged()) {
+    try {
+      const data = await api('/unfpa');
+      unfpaDB = Array.isArray(data) ? data.map(e => ({
+        id: e.id,
+        c: e.csi_code || String(e.csi_id),
+        n: e.csi_nom || String(e.csi_id),
+        d: e.district || '',
+        e: e.enqueteur || '',
+        dt: e.date_enquete || '',
+        a: e.reponses || {},
+        statut: e.statut,
+        _apiId: e.id
+      })) : [];
+      // Fusionner brouillons locaux non encore synchronisés
+      const local = JSON.parse(localStorage.getItem('unfpa26') || '[]');
+      local.forEach(l => { if (!unfpaDB.find(r => r.id === l.id)) unfpaDB.push(l); });
+      return;
+    } catch(e) { /* fallback */ }
+  }
   try { unfpaDB = JSON.parse(localStorage.getItem('unfpa26') || '[]'); }
   catch(e) { unfpaDB = []; }
 }
 function saveUnfpaDB() {
-  try { localStorage.setItem('unfpa26', JSON.stringify(unfpaDB)); }
-  catch(e) {}
+  // Toujours sauvegarder localement
+  try { localStorage.setItem('unfpa26', JSON.stringify(unfpaDB)); } catch(e) {}
+  // Auto-sync vers l'API si connecté et que l'enquête courante a un _apiId
+  if (isLogged() && unfpaCur?._apiId) {
+    api(`/unfpa`, { method: 'PUT', body: {
+      csi_id: parseInt(unfpaCur.c) || unfpaCur._csiId,
+      annee: new Date().getFullYear(),
+      reponses: unfpaCur.a || {}
+    }}).catch(() => {});
+  }
 }
 
 const unfpaVis = (s, r) => !s.f || (r && r.a && r.a[s.f[0]] === s.f[1]);
@@ -3542,7 +3743,10 @@ async function renderRavitaillement() {
           </h2>
           <p class="text-muted" style="font-size:0.84rem">Chaîne d'approvisionnement des CSI : Déclaration de rupture, demandes et dotations officielles</p>
         </div>
-        <button class="btn btn-primary btn-sm ml-auto" id="btn-new-commande">➕ Nouvelle Demande / Alerte Rupture</button>
+        <div class="flex">
+          ${state.user?.role === 'agent' ? `<button class="btn btn-ghost btn-sm" id="btn-rupture-rapide" style="color:var(--accent-rose)">🚨 Signaler une rupture</button>` : ''}
+          <button class="btn btn-primary btn-sm" id="btn-new-commande">➕ Nouvelle Demande / Alerte Rupture</button>
+        </div>
       </div>
 
       <!-- KPI Approvisionnement -->
@@ -3604,6 +3808,16 @@ async function renderRavitaillement() {
     `;
 
     $('#btn-new-commande').onclick = () => showNouvelleDemandeModal(csis);
+    const btnRupture = $('#btn-rupture-rapide');
+    if (btnRupture) btnRupture.onclick = async () => {
+      const produit = prompt('Produit en rupture (ex: ACT paludisme) :');
+      if (!produit) return;
+      try {
+        await api('/ravitaillement/rupture-rapide', { method: 'POST', body: { produit } });
+        notify('Alerte rupture signalée avec succès.', 'success');
+        await loadRavitaillementList();
+      } catch(e) { notify(e.message, 'error'); }
+    };
     $('#rav-filter-statut').onchange = () => loadRavitaillementList();
     $('#rav-filter-prio').onchange = () => loadRavitaillementList();
     $('#rav-filter-reset').onclick = () => {
@@ -4814,6 +5028,173 @@ async function deleteUserPermanently(id, nom) {
     notify(`Compte de "${nom}" supprimé avec succès.`, 'success');
     renderUtilisateurs();
   } catch(e) { notify(e.message, 'error'); }
+}
+
+// ── Vues supplémentaires (Phase 4) ────────────────────────────────────────────
+
+async function renderStock() {
+  const el = $('#stock');
+  if (!isLogged()) { el.innerHTML = '<div class="alert alert-warn">Connexion requise.</div>'; return; }
+  el.innerHTML = loading('Chargement du stock courant...');
+  try {
+    const stock = await api('/ravitaillement/stock-courant');
+    el.innerHTML = `
+      <div class="row" style="align-items:center;margin-bottom:16px">
+        <h2 style="font-size:1.35rem;font-weight:800;margin:0">📦 Stock Courant du CSI</h2>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>Médicament</th><th style="text-align:right">Quantité</th><th>Dernière maj.</th></tr></thead>
+        <tbody>
+          ${stock.length ? stock.map(s => `<tr>
+            <td><strong>${esc(s.medicament_nom || s.medicament_id)}</strong></td>
+            <td style="text-align:right;font-family:var(--font-mono);font-weight:700;color:${s.quantite < 10 ? 'var(--accent-rose)' : 'var(--accent-green)'}">${s.quantite}</td>
+            <td class="text-muted" style="font-size:0.8rem">${s.maj_le ? new Date(s.maj_le).toLocaleDateString('fr-FR') : '—'}</td>
+          </tr>`).join('') : '<tr><td colspan="3" style="text-align:center;padding:24px" class="text-muted">Aucune donnée de stock disponible.</td></tr>'}
+        </tbody>
+      </table></div>`;
+  } catch(e) { el.innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`; }
+}
+
+async function renderAlertes() {
+  const el = $('#alertes');
+  if (!isLogged()) { el.innerHTML = '<div class="alert alert-warn">Connexion requise.</div>'; return; }
+  el.innerHTML = loading('Chargement des alertes...');
+  try {
+    const [epidemio, retard] = await Promise.all([
+      api('/alertes/epidemiologiques').catch(() => []),
+      api('/alertes/csi-en-retard').catch(() => [])
+    ]);
+    el.innerHTML = `
+      <h2 style="font-size:1.35rem;font-weight:800;margin-bottom:16px">🚨 Alertes & Surveillance</h2>
+
+      <div class="card" style="margin-bottom:16px;border-left:4px solid var(--accent-rose)">
+        <div class="card-header"><div class="card-title">📈 Alertes Épidémiologiques</div></div>
+        ${epidemio.length ? `<div class="tw"><table>
+          <thead><tr><th>Motif</th><th>Région</th><th>Consultations ce mois</th><th>Moyenne 3 mois</th><th>Hausse</th></tr></thead>
+          <tbody>${epidemio.map(a => `<tr>
+            <td><strong>${esc(a.motif)}</strong></td>
+            <td>${esc(a.region_nom||'Nationale')}</td>
+            <td style="text-align:right;font-weight:700;color:var(--accent-rose)">${a.nb_ce_mois}</td>
+            <td style="text-align:right">${a.moyenne_3mois}</td>
+            <td style="text-align:right"><span class="role-pill" style="background:var(--accent-rose-glow);color:var(--accent-rose)">+${a.hausse_pct}%</span></td>
+          </tr>`).join('')}</tbody>
+        </table></div>` : '<p class="text-muted" style="padding:16px">Aucune alerte épidémiologique.</p>'}
+      </div>
+
+      <div class="card" style="border-left:4px solid var(--accent-amber)">
+        <div class="card-header"><div class="card-title">⏰ CSI en Retard de Rapport</div></div>
+        ${retard.length ? `<div class="tw"><table>
+          <thead><tr><th>CSI</th><th>Commune</th><th>Région</th><th>Dernier rapport</th></tr></thead>
+          <tbody>${retard.map(r => `<tr>
+            <td><strong>${esc(r.nom)}</strong></td>
+            <td>${esc(r.commune||'—')}</td>
+            <td>${esc(r.region_nom||'—')}</td>
+            <td class="text-muted" style="font-size:0.8rem">${r.dernier_rapport ? new Date(r.dernier_rapport).toLocaleDateString('fr-FR') : '<span style="color:var(--accent-rose)">Jamais</span>'}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>` : '<p class="text-muted" style="padding:16px">Tous les CSI sont à jour.</p>'}
+      </div>`;
+  } catch(e) { el.innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`; }
+}
+
+let auditPage = 1;
+async function renderAudit() {
+  const el = $('#audit');
+  if (!isAdmin()) { el.innerHTML = '<div class="alert alert-error">Accès réservé aux administrateurs.</div>'; return; }
+  el.innerHTML = loading('Chargement du journal d\'audit...');
+  try {
+    const data = await api(`/admin/audit?page=${auditPage}&limit=50`);
+    const { logs, total, page, limit } = data;
+    const pages = Math.ceil(total / limit);
+    el.innerHTML = `
+      <div class="row" style="align-items:center;margin-bottom:16px">
+        <h2 style="font-size:1.35rem;font-weight:800;margin:0">📜 Journal d'Audit</h2>
+        <a href="/api/admin/audit?format=csv" class="btn btn-secondary btn-sm ml-auto" style="text-decoration:none">⬇️ Export CSV</a>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Table</th><th>ID</th><th>IP</th></tr></thead>
+        <tbody>${logs.map(l => `<tr>
+          <td class="text-mono" style="font-size:0.78rem">${new Date(l.cree_le).toLocaleString('fr-FR')}</td>
+          <td>${esc(l.utilisateur_nom||l.utilisateur_id||'—')}</td>
+          <td><span class="role-pill role-superviseur" style="font-size:0.72rem">${esc(l.action)}</span></td>
+          <td class="text-muted" style="font-size:0.8rem">${esc(l.table_cible||'—')}</td>
+          <td class="text-mono" style="font-size:0.8rem">${l.enregistrement_id||'—'}</td>
+          <td class="text-muted" style="font-size:0.78rem">${esc(l.ip_adresse||'—')}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+      ${pages > 1 ? `<div style="display:flex;gap:8px;justify-content:center;margin-top:16px">
+        <button class="btn btn-secondary btn-sm" ${auditPage<=1?'disabled':''} id="audit-prev">← Précédent</button>
+        <span class="text-muted" style="font-size:0.82rem">Page ${page} / ${pages} (${total} entrées)</span>
+        <button class="btn btn-secondary btn-sm" ${auditPage>=pages?'disabled':''} id="audit-next">Suivant →</button>
+      </div>` : ''}`;
+    if ($('#audit-prev')) $('#audit-prev').onclick = () => { auditPage--; renderAudit(); };
+    if ($('#audit-next')) $('#audit-next').onclick = () => { auditPage++; renderAudit(); };
+  } catch(e) { el.innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`; }
+}
+
+async function renderParametres() {
+  const el = $('#parametres');
+  if (!isSuperviseur()) { el.innerHTML = '<div class="alert alert-error">Accès non autorisé.</div>'; return; }
+  el.innerHTML = loading('Chargement des paramètres...');
+  try {
+    const params = await api('/admin/parametres');
+    const isAdm = isAdmin();
+    el.innerHTML = `
+      <div class="row" style="align-items:center;margin-bottom:16px">
+        <h2 style="font-size:1.35rem;font-weight:800;margin:0">⚙️ Paramètres Système</h2>
+      </div>
+      <div class="card">
+        <form id="form-params">
+          ${params.map(p => `<div class="row" style="align-items:center;margin-bottom:12px">
+            <label class="field" style="flex:2"><span>${esc(p.cle)}</span>
+              <input name="${esc(p.cle)}" value="${esc(p.valeur)}" ${isAdm?'':'disabled'}>
+            </label>
+            <span class="text-muted" style="font-size:0.78rem;flex:2">${esc(p.description||'')}</span>
+          </div>`).join('')}
+          ${isAdm ? `<button class="btn btn-primary" type="submit">💾 Enregistrer</button>` : ''}
+        </form>
+      </div>`;
+    if (isAdm) {
+      $('#form-params').onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const body = Object.fromEntries(fd);
+        try {
+          await api('/admin/parametres', { method: 'PUT', body });
+          notify('Paramètres mis à jour.', 'success');
+        } catch(err) { notify(err.message, 'error'); }
+      };
+    }
+  } catch(e) { el.innerHTML = `<div class="alert alert-error">❌ ${esc(e.message)}</div>`; }
+}
+
+async function renderMotDePasse() {
+  const el = $('#motdepasse');
+  if (!isLogged()) { el.innerHTML = '<div class="alert alert-warn">Connexion requise.</div>'; return; }
+  el.innerHTML = `
+    <div style="max-width:460px;margin:40px auto">
+      <div class="card">
+        <div class="card-header"><div class="card-title">🔑 Changer mon mot de passe</div></div>
+        <form id="form-mdp">
+          <label class="field"><span>Mot de passe actuel *</span><input type="password" name="ancien_mot_de_passe" required></label>
+          <label class="field"><span>Nouveau mot de passe * (min. 8 caractères)</span><input type="password" name="nouveau_mot_de_passe" required minlength="8"></label>
+          <label class="field"><span>Confirmer le nouveau mot de passe *</span><input type="password" id="mdp-confirm" required minlength="8"></label>
+          <button class="btn btn-primary" type="submit" id="btn-save-mdp">💾 Changer le mot de passe</button>
+        </form>
+      </div>
+    </div>`;
+  $('#form-mdp').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const np = fd.get('nouveau_mot_de_passe');
+    if (np !== $('#mdp-confirm').value) { notify('Les mots de passe ne correspondent pas.', 'error'); return; }
+    const btn = $('#btn-save-mdp'); btn.disabled = true;
+    try {
+      await api('/me/mot-de-passe', { method: 'POST', body: Object.fromEntries(fd) });
+      notify('Mot de passe changé avec succès. Reconnectez-vous.', 'success');
+      e.target.reset();
+    } catch(err) { notify(err.message, 'error'); }
+    finally { btn.disabled = false; }
+  };
 }
 
 // ── Initialisation ─────────────────────────────────────────────────────────────
