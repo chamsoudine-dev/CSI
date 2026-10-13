@@ -114,6 +114,10 @@ const catalogueRoutes     = require('./src/routes/catalogue');
 const ravitaillementRoutes = require('./src/routes/ravitaillement');
 const materniteRoutes     = require('./src/routes/maternite');
 const patientRoutes       = require('./src/routes/patients');
+const unfpaRoutes         = require('./src/routes/unfpa');
+const referentielsRoutes  = require('./src/routes/referentiels');
+const adminRoutes         = require('./src/routes/admin');
+const alertesRoutes       = require('./src/routes/alertes');
 
 app.use('/api', authRoutes);
 app.use('/api', csiRoutes);
@@ -124,6 +128,10 @@ app.use('/api/catalogue', catalogueRoutes);
 app.use('/api/ravitaillement', ravitaillementRoutes);
 app.use('/api/maternite', materniteRoutes);
 app.use('/api/patients', patientRoutes);
+app.use('/api/unfpa', unfpaRoutes);
+app.use('/api/referentiels', referentielsRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/alertes', alertesRoutes);
 
 // ─── Fallback SPA ─────────────────────────────────────────────────────────────
 app.get('*', (req, res) => {

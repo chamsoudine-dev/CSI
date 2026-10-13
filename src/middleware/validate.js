@@ -86,7 +86,7 @@ const medicamentSchema = Joi.object({
   entrees: Joi.number().integer().min(0).default(0),
   sorties: Joi.number().integer().min(0).default(0),
   stock_fin: Joi.number().integer().min(0).default(0),
-  jours_rupture: Joi.number().integer().min(0).default(0)
+  jours_rupture: Joi.number().integer().min(0).max(31).default(0)
 });
 
 const rapportSchema = Joi.object({

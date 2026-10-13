@@ -391,6 +391,26 @@ router.put('/:id/statut', auth(), validateIdParam('id'), validate(schemas.ravita
         }
       }
 
+      // Mise à jour automatique de la table stock_courant du CSI lors de la livraison
+      if (nouveauStatut === 'LIVRE') {
+        const { rows: livrees } = await client.query(`
+          SELECT medicament_id, COALESCE(quantite_accordee, quantite_demandee) AS qte
+          FROM demande_lignes
+          WHERE demande_id = $1
+        `, [id]);
+
+        for (const l of livrees) {
+          if (l.medicament_id && l.qte > 0) {
+            await client.query(`
+              INSERT INTO stock_courant (csi_id, medicament_id, quantite, maj_le)
+              VALUES ($1, $2, $3, NOW())
+              ON CONFLICT (csi_id, medicament_id)
+              DO UPDATE SET quantite = stock_courant.quantite + EXCLUDED.quantite, maj_le = NOW()
+            `, [commande.csi_id, l.medicament_id, l.qte]);
+          }
+        }
+      }
+
       await logAudit({
         utilisateur_id: req.user.id,
         action: 'UPDATE_STATUT_RAVITAILLEMENT',
@@ -407,6 +427,118 @@ router.put('/:id/statut', auth(), validateIdParam('id'), validate(schemas.ravita
   } catch (err) {
     logger.error({ err }, 'Erreur mise à jour statut ravitaillement');
     res.status(500).json({ erreur: err.message || 'Erreur serveur' });
+  }
+});
+
+/**
+ * GET /api/ravitaillement/stock-courant
+ * Consultation du stock courant d'un CSI selon le périmètre
+ */
+router.get('/stock-courant', auth(), async (req, res) => {
+  try {
+    let csiId = null;
+    if (req.user.role === 'agent') {
+      csiId = req.user.csi_id;
+    } else if (req.query.csi_id) {
+      csiId = parseInt(req.query.csi_id, 10);
+      const allowed = await checkCsiScope(csiId, req.user);
+      if (!allowed) return res.status(403).json({ erreur: 'Accès non autorisé à ce CSI' });
+    }
+
+    if (!csiId) {
+      return res.status(400).json({ erreur: 'csi_id requis pour consulter le stock courant' });
+    }
+
+    const { rows } = await pool.query(`
+      SELECT sc.medicament_id, sc.quantite, sc.maj_le,
+             cm.code, cm.designation, cm.forme, cm.dosage, cm.classe_therapeutique
+      FROM stock_courant sc
+      JOIN catalogue_medicaments cm ON cm.id = sc.medicament_id
+      WHERE sc.csi_id = $1
+      ORDER BY cm.designation ASC
+    `, [csiId]);
+
+    res.json(rows);
+  } catch (err) {
+    logger.error({ err }, 'Erreur consultation stock-courant');
+    res.status(500).json({ erreur: 'Erreur serveur stock courant' });
+  }
+});
+
+/**
+ * POST /api/ravitaillement/rupture-rapide
+ * Signale une rupture de stock critique et crée directement une commande urgente
+ */
+router.post('/rupture-rapide', auth(), async (req, res) => {
+  try {
+    const { csi_id: bodyCsiId, medicaments, motif } = req.body;
+    let targetCsi = null;
+
+    if (req.user.role === 'agent') {
+      targetCsi = req.user.csi_id;
+    } else {
+      targetCsi = bodyCsiId ? parseInt(bodyCsiId, 10) : null;
+      if (targetCsi) {
+        const allowed = await checkCsiScope(targetCsi, req.user);
+        if (!allowed) return res.status(403).json({ erreur: 'Accès non autorisé à ce CSI' });
+      }
+    }
+
+    if (!targetCsi) return res.status(400).json({ erreur: 'CSI requis pour signaler une rupture' });
+    if (!medicaments || !Array.isArray(medicaments) || !medicaments.length) {
+      return res.status(400).json({ erreur: 'Au moins un médicament en rupture doit être spécifié' });
+    }
+
+    const numero_commande = await genererNumeroCommande();
+
+    const created = await withTransaction(async (client) => {
+      const { rows: cmdRows } = await client.query(`
+        INSERT INTO demandes_ravitaillement
+          (numero_commande, csi_id, demandeur_id, priorite, motif_demande, statut, date_demande)
+        VALUES ($1, $2, $3, 'CRITIQUE_RUPTURE', $4, 'DEMANDE', NOW())
+        RETURNING *
+      `, [numero_commande, targetCsi, req.user.id, motif || 'Signalement urgent de rupture de stock']);
+
+      const cmd = cmdRows[0];
+
+      for (const m of medicaments) {
+        let medId = m.medicament_id;
+        if (!medId && m.produit) {
+          const { rows: cm } = await client.query(
+            'SELECT id FROM catalogue_medicaments WHERE LOWER(TRIM(designation)) = LOWER(TRIM($1)) LIMIT 1',
+            [m.produit]
+          );
+          if (cm[0]) medId = cm[0].id;
+        }
+
+        if (medId) {
+          await client.query(`
+            INSERT INTO demande_lignes (demande_id, medicament_id, quantite_demandee, motif_ligne)
+            VALUES ($1, $2, $3, $4)
+          `, [cmd.id, medId, Math.max(1, parseInt(m.quantite_demandee, 10) || 50), m.motif || 'Rupture immédiate']);
+        }
+      }
+
+      await logAudit({
+        utilisateur_id: req.user.id,
+        action: 'SIGNALER_RUPTURE_RAPIDE',
+        table_cible: 'demandes_ravitaillement',
+        enregistrement_id: cmd.id,
+        details: { csi_id: targetCsi, numero_commande, nb_medicaments: medicaments.length },
+        ip_adresse: req.ip,
+        client
+      });
+
+      return cmd;
+    });
+
+    res.status(201).json({
+      message: 'Demande urgente de ravitaillement pour rupture critique créée avec succès',
+      commande: created
+    });
+  } catch (err) {
+    logger.error({ err }, 'Erreur signalement rupture rapide');
+    res.status(500).json({ erreur: err.message || 'Erreur serveur rupture rapide' });
   }
 });
 

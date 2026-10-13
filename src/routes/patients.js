@@ -226,7 +226,25 @@ router.post('/', auth(), async (req, res) => {
       csi_inscription_id = req.body.csi_inscription_id || null;
     }
 
-    const numero_patient = await genererNumeroPatient();
+    // Détection de doublons patients (Phase 4C) : même nom, prénom, date de naissance, téléphone
+    if (!req.body.ignorer_doublon && nom && prenom && date_naissance && telephone) {
+      const { rows: doublons } = await pool.query(`
+        SELECT id, numero_patient, nom, prenom, date_naissance, telephone
+        FROM patients
+        WHERE LOWER(TRIM(nom)) = LOWER(TRIM($1))
+          AND LOWER(TRIM(prenom)) = LOWER(TRIM($2))
+          AND date_naissance = $3::date
+          AND TRIM(telephone) = TRIM($4)
+      `, [nom, prenom, date_naissance, telephone]);
+
+      if (doublons.length > 0) {
+        return res.status(409).json({
+          doublon: true,
+          erreur: `Doublon potentiel détecté : un patient (${doublons[0].numero_patient} - ${doublons[0].prenom} ${doublons[0].nom}) avec les mêmes coordonnées existe déjà.`,
+          patient_existant: doublons[0]
+        });
+      }
+    }
 
     const { rows } = await pool.query(`
       INSERT INTO patients

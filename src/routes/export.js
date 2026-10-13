@@ -93,9 +93,54 @@ router.get('/export/rapport', auth(), wrap(async (req, res) => {
   res.send('\uFEFF' + csv);
 }));
 
-// ─── GET /api/export/stats ── Export CSV des stats ────────────────────────────
+/**
+ * Convertit un tableau d'objets en feuille Excel XML SpreadsheetML
+ */
+function toExcelXML(rows, headers, sheetName = 'Statistiques') {
+  const escapeXML = v => String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  xml += '<?mso-application progid="Excel.Sheet"?>\n';
+  xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"\n';
+  xml += ' xmlns:o="urn:schemas-microsoft-com:office:office"\n';
+  xml += ' xmlns:x="urn:schemas-microsoft-com:office:excel"\n';
+  xml += ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"\n';
+  xml += ' xmlns:html="http://www.w3.org/TR/REC-html40">\n';
+  xml += ` <Worksheet ss:Name="${escapeXML(sheetName)}">\n`;
+  xml += '  <Table>\n';
+
+  // Entêtes
+  xml += '   <Row>\n';
+  for (const h of headers) {
+    xml += `    <Cell><Data ss:Type="String"><b>${escapeXML(h.label)}</b></Data></Cell>\n`;
+  }
+  xml += '   </Row>\n';
+
+  // Données
+  for (const r of rows) {
+    xml += '   <Row>\n';
+    for (const h of headers) {
+      const v = r[h.key];
+      const isNum = typeof v === 'number' || (!isNaN(v) && v !== '' && v !== null && typeof v !== 'boolean');
+      const type = isNum ? 'Number' : 'String';
+      xml += `    <Cell><Data ss:Type="${type}">${escapeXML(v ?? '')}</Data></Cell>\n`;
+    }
+    xml += '   </Row>\n';
+  }
+
+  xml += '  </Table>\n';
+  xml += ' </Worksheet>\n';
+  xml += '</Workbook>\n';
+  return xml;
+}
+
+// ─── GET /api/export/stats ── Export CSV ou Excel des stats ───────────────────
 router.get('/export/stats', auth(['admin', 'superviseur']), wrap(async (req, res) => {
-  const { mois, region } = req.query;
+  const { mois, region, format } = req.query;
   const m = moisDate(mois) || new Date().toISOString().slice(0, 7) + '-01';
   const moisLabel = mois || new Date().toISOString().slice(0, 7);
   const { role, region_id: userRegion } = req.user;
@@ -124,10 +169,7 @@ router.get('/export/stats', auth(['admin', 'superviseur']), wrap(async (req, res
      ORDER BY g.nom, c.nom, s.nom`, queryParams
   );
 
-  const filename = regionFilter
-    ? `stats_region_${regionFilter}_${moisLabel}.csv`
-    : `stats_nationale_${moisLabel}.csv`;
-  const csv = toCSV(rows, [
+  const headers = [
     { key: 'region', label: 'Région' },
     { key: 'commune', label: 'Commune' },
     { key: 'type', label: 'Type' },
@@ -137,8 +179,22 @@ router.get('/export/stats', auth(['admin', 'superviseur']), wrap(async (req, res
     { key: 'total_vaccinations', label: 'Total vaccinations' },
     { key: 'jours_rupture_total', label: 'Jours de rupture' },
     { key: 'derniere_modification', label: 'Dernière modification' }
-  ]);
+  ];
 
+  const isExcel = format === 'xlsx' || format === 'excel';
+  const extension = isExcel ? 'xls' : 'csv';
+  const filename = regionFilter
+    ? `stats_region_${regionFilter}_${moisLabel}.${extension}`
+    : `stats_nationale_${moisLabel}.${extension}`;
+
+  if (isExcel) {
+    const xml = toExcelXML(rows, headers, 'Stats CSI Niger');
+    res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(xml);
+  }
+
+  const csv = toCSV(rows, headers);
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send('\uFEFF' + csv);
