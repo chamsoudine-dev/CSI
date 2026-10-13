@@ -1,0 +1,27 @@
+# Fichiers Node.js
+node_modules/
+npm-debug.log*
+
+# Fichiers environnement (secrets)
+.env
+.env.docker
+
+# Logs
+*.log
+logs/
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Fichiers de développement inutiles en image Docker
+tests/
+*.test.js
+*.md
+.gitignore
+# Fichiers SQL et HTML de travail dépréciés
+import_catalogue_niger.sql
+import_pgadmin_complet.sql
+OIP.webp
+entretien-sortie-pf.html
+enquete_unfpa_csi.html

@@ -1,162 +1,159 @@
 # 🏥 Registre des CSI du Niger — v2.0
 
-Système national de gestion et de suivi des **Centres de Santé Intégrés (CSI)** du Niger.
-Conçu pour être déployé dans plusieurs CSI à travers le pays, avec une gestion centralisée des données de santé.
+Système national de gestion, de suivi et de ravitaillement des **Centres de Santé Intégrés (CSI)** du Niger.
+Conçu pour être déployé dans l'ensemble des formations sanitaires du pays, avec une gouvernance décentralisée et sécurisée par rôle et périmètre géographique.
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture du projet
 
 ```
 csi-niger/
-├── server.js                   # Point d'entrée (sécurité, rate limiting, logging)
+├── server.js                   # Point d'entrée Express (sécurité, rate limiting, logging, CSP)
+├── Dockerfile                  # Image Docker basée sur Node.js 20-slim
+├── docker-compose.yml          # Déploiement multi-conteneurs (app, db, adminer)
+├── docker-entrypoint.sh        # Entrypoint avec migrations et seeds idempotents
+├── catalogue_niger.csv         # Référentiel national des médicaments essentiels
+├── scripts/
+│   └── backup.sh               # Script de sauvegarde automatisée pg_dump avec rétention
 ├── src/
-│   ├── config/database.js      # Pool PostgreSQL configuré
+│   ├── config/database.js      # Pool PostgreSQL configuré avec gestion des erreurs
 │   ├── middleware/
-│   │   ├── auth.js             # JWT + contrôle de rôles
-│   │   └── validate.js         # Validation Joi des entrées
-│   └── routes/
-│       ├── auth.js             # Login, gestion utilisateurs
-│       ├── csi.js              # CRUD des CSI avec pagination
-│       ├── rapports.js         # Saisie et consultation des rapports
-│       ├── stats.js            # Statistiques + health check
-│       └── export.js           # Export CSV
+│   │   ├── auth.js             # Authentification JWT, rechargement utilisateur et vérification d'activité
+│   │   ├── scope.js            # Contrôle strict du périmètre d'accès (agent/superviseur/admin)
+│   │   └── validate.js         # Validation Joi stricte des requêtes
+│   ├── routes/
+│   │   ├── auth.js             # Connexion, profil me, changement de mot de passe, gestion utilisateurs
+│   │   ├── csi.js              # Liste et gestion des CSI avec pagination et filtres géographiques
+│   │   ├── rapports.js         # Gestion des rapports mensuels d'activité et stocks
+│   │   ├── stats.js            # Statistiques agrégées par région/CSI + endpoint /health enrichi
+│   │   ├── catalogue.js        # Consultation du catalogue national des médicaments
+│   │   ├── ravitaillement.js   # Gestion du cycle de ravitaillement avec machine d'états stricte
+│   │   ├── maternite.js        # Enregistrement des naissances, CPN et CPON
+│   │   ├── patients.js         # Dossiers patients, antécédents et visites
+│   │   └── export.js           # Exportation CSV selon périmètre
+│   └── utils/
+│       ├── audit.js            # Journalisation immuable des événements d'audit
+│       └── logger.js           # Logger structuré Pino
 ├── migrations/
-│   ├── 001_schema.sql          # Schéma renforcé avec index et contraintes
-│   ├── 002_utilisateurs.sql    # Table utilisateurs, audit, triggers
-│   ├── run.js                  # Exécuteur de migrations
-│   └── seed_admin.js           # Création du premier admin
-└── public/index.html           # Interface utilisateur (SPA)
+│   ├── 001_schema.sql          # Schéma relationnel (régions, communes, CSI, rapports, stocks)
+│   ├── 002_utilisateurs.sql    # Authentification, rôles, table d'audit
+│   ├── 003_cree_par_utilisateurs.sql # Traçabilité de création des comptes
+│   ├── 004_catalogue_medicaments.sql # Table du catalogue des médicaments
+│   ├── 005_ravitaillement_maternite.sql # Commandes, réceptions et registre maternité
+│   ├── 006_patients.sql        # Registre des patients et consultations
+│   ├── run.js                  # Exécuteur idempotent des migrations SQL
+│   ├── seed_admin.js           # Création sécurisée de l'administrateur national
+│   ├── seed_catalogue.js       # Chargement idempotent du catalogue national
+│   └── seed_profiles.js        # Comptes de test (activé via SEED_DEMO=true)
+└── public/
+    └── index.html              # Frontend SPA complet (HTML5, Tailwind, Alpine/Vanilla JS)
 ```
+
+---
+
+## 👥 Rôles et Périmètres de Sécurité
+
+Le système applique un contrôle d'accès en profondeur via `src/middleware/scope.js` :
+- **Agent CSI** :
+  - Restreint strictement à son `csi_id`.
+  - Saisie des rapports, maternité, dossiers patients et demandes de ravitaillement pour son centre.
+  - Peut marquer comme `LIVRE` une commande reçue pour son propre CSI.
+- **Superviseur Régional** :
+  - Restreint strictement à sa `region_id`.
+  - Consultation et validation des rapports et données des CSI de sa région.
+  - Gestion du cycle de commande (`EN_REVUE`, `APPROUVE`, `EXPEDIE`, `REJETE`) pour sa région.
+  - Création et gestion des comptes **agents** rattachés aux CSI de sa région.
+- **Administrateur National** :
+  - Périmètre national complet.
+  - Gestion de l'ensemble des utilisateurs (sauf son auto-désactivation et la suppression du dernier admin actif).
+  - Gestion des CSI, catalogues et paramètres nationaux.
+
+---
+
+## 🔄 Machine d'États du Ravitaillement
+
+Les commandes de ravitaillement suivent un workflow d'approbation strict :
+```
+DEMANDE ──▶ EN_REVUE ──▶ APPROUVE ──▶ EXPEDIE ──▶ LIVRE
+   │            │
+   ▼            ▼
+REJETE       REJETE
+```
+- **Agent** : Crée en `DEMANDE` ; peut uniquement passer en `LIVRE` à la réception.
+- **Superviseur** : Transitions `EN_REVUE`, `APPROUVE`, `EXPEDIE` ou `REJETE` sur sa région.
+- **Admin** : Transitions sur toute commande.
+- *Toute transition illicite ou non autorisée déclenche une réponse HTTP 409 Conflict.*
+- Les numéros de commande sont générés de manière atomique via une séquence PostgreSQL dédiée (`commande_numero_seq`).
 
 ---
 
 ## 🚀 Installation & Démarrage
 
-### 1. Prérequis
-- Node.js 18+
-- PostgreSQL 14+
+### Option 1 — Déploiement Docker (recommandé en production)
+Consultez le guide détaillé [DOCKER.md](file:///c:/Users/lenovo/Desktop/csi-niger/DOCKER.md).
 
-### 2. Installation
 ```bash
+cp .env.docker .env
+# Définir POSTGRES_PASSWORD, JWT_SECRET, ADMIN_PASSWORD dans .env
+docker compose up --build -d
+```
+
+### Option 2 — Démarrage local Node.js
+```bash
+# 1. Installer les dépendances
 npm install
-```
 
-### 3. Configuration
-Copier `.env.example` en `.env` et remplir les valeurs :
-```bash
+# 2. Configurer l'environnement
 cp .env.example .env
-```
 
-Variables obligatoires :
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | URL de connexion PostgreSQL |
-| `JWT_SECRET` | Clé secrète JWT (min. 32 caractères) |
-
-### 4. Base de données
-```bash
-# Créer la base de données
-createdb csi_niger
-
-# Appliquer les migrations
+# 3. Exécuter les migrations et seeds
 npm run migrate
-
-# Créer le premier administrateur
 npm run seed
-```
+npm run seed:catalogue
 
-### 5. Démarrage
-```bash
-# Production
+# 4. Lancer les tests unitaires et d'intégration
+npm test
+
+# 5. Démarrer le serveur
 npm start
-
-# Développement (rechargement automatique)
-npm run dev
 ```
 
 ---
 
-## 👥 Gestion des utilisateurs
+## 📡 Référentiel des Endpoints API
 
-| Rôle | Droits |
-|---|---|
-| **admin** | Accès complet — gestion utilisateurs, tous les CSI |
-| **superviseur** | Voit et gère les CSI de sa région |
-| **agent** | Saisit uniquement les données de son propre CSI |
-
-### Créer un utilisateur (via l'interface)
-1. Connectez-vous en tant qu'administrateur
-2. Allez dans l'onglet **👥 Utilisateurs**
-3. Cliquez **+ Ajouter un utilisateur**
-
----
-
-## 🔒 Sécurité
-
-- **JWT** avec expiration configurable (défaut : 7 jours)
-- **Rate limiting** : 15 tentatives/15min sur le login, 300 req/min sur l'API
-- **Helmet** : en-têtes HTTP de sécurité (CSP, HSTS, etc.)
-- **Bcrypt** (coût 12) pour les mots de passe
-- **Validation Joi** de toutes les entrées
-- **Contrôle d'accès** : les agents ne peuvent accéder qu'à leur propre CSI
-
----
-
-## 📡 API
-
-| Endpoint | Méthode | Auth | Description |
-|---|---|---|---|
-| `/api/login` | POST | — | Connexion |
-| `/api/me` | GET | ✅ | Infos utilisateur courant |
-| `/api/utilisateurs` | GET/POST | Admin | Gestion utilisateurs |
-| `/api/utilisateurs/:id` | PUT/DELETE | Admin | Modifier/désactiver |
-| `/api/regions` | GET | — | Liste des 8 régions |
-| `/api/csi` | GET | — | Liste CSI (paginée) |
-| `/api/csi/:id` | GET | — | Détail d'un CSI |
-| `/api/csi` | POST | Superviseur+ | Ajouter un CSI |
-| `/api/csi/:id` | PUT/DELETE | Admin | Modifier/désactiver |
-| `/api/rapport` | GET | Agent+ | Lire un rapport |
-| `/api/rapport` | PUT | Agent+ | Sauvegarder un rapport |
-| `/api/rapports/liste` | GET | Superviseur+ | Liste avec statut |
-| `/api/stats` | GET | — | Statistiques du tableau de bord |
-| `/api/export/rapport` | GET | Agent+ | Export CSV d'un rapport |
-| `/api/export/stats` | GET | Superviseur+ | Export CSV national |
-| `/api/health` | GET | — | État du serveur (monitoring) |
+| Endpoint | Méthode | Rôle requis | Périmètre appliqué | Description |
+|---|---|---|---|---|
+| `/api/login` | POST | Public | — | Authentification (rate limit: 15/15min) |
+| `/api/me` | GET | Authentifié | Utilisateur courant | Informations du compte actif |
+| `/api/me/mot-de-passe` | POST | Authentifié | Utilisateur courant | Changement de mot de passe (min. 8 car.) |
+| `/api/utilisateurs` | GET, POST | Superviseur / Admin | Régional / National | Liste et création de comptes |
+| `/api/utilisateurs/:id` | PUT, DELETE | Superviseur / Admin | Régional / National | Modification / désactivation |
+| `/api/csi` | GET | Public | — | Liste paginée des CSI |
+| `/api/csi/:id` | GET | Public | — | Fiche détaillée d'un CSI |
+| `/api/catalogue` | GET | Public | — | Catalogue national des médicaments |
+| `/api/stats` | GET | Authentifié | CSI / Région / National | Statistiques consolidées et tableau de bord |
+| `/api/health` | GET | Public | — | Diagnostic serveur, latence DB et migrations |
+| `/api/rapport` | GET, PUT | Authentifié | CSI / Région / National | Consultation et saisie des rapports |
+| `/api/rapports/liste` | GET | Authentifié | CSI / Région / National | Liste filtrée des rapports |
+| `/api/ravitaillement` | GET, POST | Authentifié | CSI / Région / National | Demandes et suivi des commandes |
+| `/api/ravitaillement/:id/statut` | PUT | Authentifié | Selon machine d'état | Transition d'état de commande |
+| `/api/maternite/naissances` | GET, POST | Authentifié | CSI / Région / National | Registre des naissances |
+| `/api/maternite/cpn` | GET, POST | Authentifié | CSI / Région / National | Consultations prénatales |
+| `/api/maternite/cpon` | GET, POST | Authentifié | CSI / Région / National | Consultations postnatales |
+| `/api/patients` | GET, POST | Authentifié | CSI / Région / National | Liste et enregistrement de patients |
+| `/api/patients/:id` | GET, PUT | Authentifié | CSI / Région / National | Fiche patient et mise à jour ciblée |
+| `/api/patients/:id/visites` | POST | Authentifié | CSI / Région / National | Nouvelle visite / consultation |
+| `/api/export/rapport` | GET | Authentifié | CSI / Région / National | Export CSV d'un rapport |
+| `/api/export/stats` | GET | Superviseur+ | Région / National | Export CSV des statistiques |
 
 ---
 
-## 🩺 Monitoring
+## 💾 Sauvegarde de la Base de Données
 
-Endpoint de santé disponible à `/api/health` :
-```json
-{
-  "status": "ok",
-  "db": "ok",
-  "db_latency_ms": 3,
-  "uptime_s": 1234,
-  "timestamp": "2024-01-15T10:30:00.000Z"
-}
+Le script [scripts/backup.sh](file:///c:/Users/lenovo/Desktop/csi-niger/scripts/backup.sh) permet de réaliser un dump PostgreSQL horodaté et compressé (`.sql.gz`) :
+```bash
+./scripts/backup.sh
 ```
-
----
-
-## 📦 Déploiement national multi-CSI
-
-**Architecture recommandée** : une seule instance centrale hébergée sur un serveur, tous les CSI se connectent via HTTPS.
-
-### Variables d'environnement supplémentaires pour la production :
-```env
-NODE_ENV=production
-DATABASE_SSL=true
-ALLOWED_ORIGINS=https://votre-domaine.ne
-LOG_LEVEL=warn
-JWT_EXPIRES=8h
-```
-
----
-
-## 🔄 Ajouter des migrations futures
-
-Créer un nouveau fichier `migrations/003_nom.sql` et exécuter `npm run migrate`.
-Les migrations déjà appliquées ne sont jamais rejouées.
+Il gère automatiquement la détection de l'environnement (Docker ou local) et applique une politique de rétention (suppression des archives de plus de 30 jours).

@@ -119,14 +119,28 @@ router.get('/stats', auth(), wrap(async (req, res) => {
 router.get('/health', wrap(async (req, res) => {
   try {
     const start = Date.now();
+    // Teste la connectivité DB (déclenche le catch 503 si la DB est injoignable)
     await pool.query('SELECT 1');
+
+    let migrations = [];
+    try {
+      const migRes = await pool.query(
+        'SELECT fichier FROM migrations ORDER BY id ASC'
+      );
+      migrations = migRes.rows.map(r => r.fichier);
+    } catch {
+      // Table migrations non créée ou vide
+      migrations = [];
+    }
+
     res.json({
       status: 'ok',
       db: 'ok',
       db_latency_ms: Date.now() - start,
       uptime_s: Math.floor(process.uptime()),
       timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version || '2.0.0'
+      version: process.env.npm_package_version || require('../../package.json').version || '2.0.0',
+      migrations_appliquees: migrations
     });
   } catch (e) {
     logger.error({ err: e }, 'Health check DB failed');

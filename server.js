@@ -137,7 +137,7 @@ app.use((err, req, res, next) => {
 });
 
 // ─── Démarrage ────────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || process.env.APP_PORT || 3000;
 const server = app.listen(PORT, () => {
   logger.info({ port: PORT, env: process.env.NODE_ENV || 'development' }, '🏥 CSI Niger démarré');
   logger.info(`  → http://localhost:${PORT}`);
