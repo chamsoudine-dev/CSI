@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { getScope, checkRegionScope, validateIdParam } = require('../src/middleware/scope');
+const { getScope, checkCsiScope, checkRegionScope, validateIdParam } = require('../src/middleware/scope');
 const { schemas } = require('../src/middleware/validate');
 
 test('Phase 2 - Scope & Périmètres', async (t) => {
@@ -18,6 +18,16 @@ test('Phase 2 - Scope & Périmètres', async (t) => {
     assert.equal(scope.isAll, false);
     assert.equal(scope.region_id, 3);
     assert.equal(scope.csi_id, null);
+  });
+
+  await t.test('le superviseur national a un périmètre global sans devenir administrateur', async () => {
+    const user = { id: 4, role: 'superviseur_national' };
+    const scope = getScope(user);
+    assert.equal(scope.role, 'superviseur_national');
+    assert.equal(scope.isAll, true);
+    assert.equal(await checkCsiScope(17, user), true);
+    assert.equal(checkRegionScope(8, user), true);
+    assert.equal(scope.role === 'admin', false);
   });
 
   await t.test('calcule le périmètre agent (csi_id forcé)', () => {
@@ -95,13 +105,15 @@ test('Phase 2 - Validation Joi Santé Maternelle & Ravitaillement', async (t) =>
 
   await t.test('valide le changement de mot de passe (min 8 car)', () => {
     const ok = schemas.changementMotDePasseSchema.validate({
-      ancien_mot_de_passe: 'AncienPass123',
+      challenge_id: 'a7f7f989-0f38-47a6-ad95-9dd90ecc6e53',
+      code: '123456',
       nouveau_mot_de_passe: 'NouveauPass2026'
     });
     assert.equal(ok.error, undefined);
 
     const tropCourt = schemas.changementMotDePasseSchema.validate({
-      ancien_mot_de_passe: 'AncienPass123',
+      challenge_id: 'a7f7f989-0f38-47a6-ad95-9dd90ecc6e53',
+      code: '123456',
       nouveau_mot_de_passe: 'court'
     });
     assert.ok(tropCourt.error);

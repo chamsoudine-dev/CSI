@@ -13,6 +13,49 @@ async function genererNumeroPatient() {
   return `NIG-${annee}-${num}`;
 }
 
+// ── Vue HTMX : Liste des patients ────────────────────────────────────────────
+router.get('/view', async (req, res) => {
+  const { q = '' } = req.query;
+  const { rows } = await pool.query(`
+    SELECT id, numero_patient, nom, prenom, telephone
+    FROM patients
+    WHERE nom ILIKE $1 OR prenom ILIKE $1
+    ORDER BY nom
+    LIMIT 50
+  `, [`%${q}%`]);
+
+  const html = `
+    <div class="patients-view">
+      <h3>🧑‍⚕️ Dossier & Patients</h3>
+      <input type="text"
+             name="q"
+             value="${q}"
+             placeholder="Rechercher un patient..."
+             hx-get="/api/patients/view"
+             hx-trigger="keyup changed delay:300ms"
+             hx-target="#patients"
+             class="search-input">
+
+      <table class="data-table">
+        <thead>
+          <tr><th>Numéro</th><th>Nom</th><th>Prénom</th><th>Téléphone</th></tr>
+        </thead>
+        <tbody>
+          ${rows.map(p => `
+            <tr>
+              <td><strong>${p.numero_patient}</strong></td>
+              <td>${p.nom}</td>
+              <td>${p.prenom || '-'}</td>
+              <td>${p.telephone || '-'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  res.send(html);
+});
+
 // ── GET /api/patients — Liste filtrée selon le périmètre (Phase 2.4) ─────────
 router.get('/', auth(), async (req, res) => {
   try {

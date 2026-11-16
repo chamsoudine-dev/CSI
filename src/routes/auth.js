@@ -1,73 +1,161 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const router = express.Router();
-const { pool } = require('../config/database');
+const { pool, withTransaction } = require('../config/database');
 const { auth, signToken, clearUserCache } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validate');
 const { validateIdParam } = require('../middleware/scope');
 const logger = require('../utils/logger');
 const { logAudit } = require('../utils/audit');
+const {
+  issueVerificationCode,
+  consumeVerificationCode
+} = require('../utils/verificationCodes');
+const { isEmailConfigured } = require('../utils/email');
 
 const wrap = f => (req, res) => f(req, res).catch(e => {
   logger.error({ err: e, route: req.path, user: req.user?.id }, 'Erreur route auth');
-  res.status(500).json({ erreur: 'Erreur serveur' });
+  res.status(e.statusCode || 500).json({ erreur: e.statusCode ? e.message : 'Erreur serveur' });
 });
 
-// ─── POST /api/login ─────────────────────────────────────────────────────────
+function publicUser(user) {
+  return {
+    id: user.id,
+    email: user.email,
+    nom: user.nom,
+    role: user.role,
+    csi_id: user.csi_id,
+    region_id: user.region_id,
+    telephone: user.telephone,
+    whatsapp: user.whatsapp,
+    poste: user.poste,
+    canal_2fa: user.canal_2fa || 'email',
+    statut_2fa: Boolean(user.statut_2fa)
+  };
+}
+
+function invalidCode(res) {
+  return res.status(400).json({ erreur: 'Code invalide, expiré ou déjà utilisé.' });
+}
+
+// ── Vue HTMX : Formulaire de connexion ───────────────────────────────────────
+router.get('/login-view', (req, res) => {
+  const html = `
+    <div class="auth-view">
+      <div class="auth-card" style="max-width:480px">
+        <div class="auth-card-header">
+          <img src="/img/logo.png" alt="Logo MS/HP Niger" class="auth-card-logo">
+          <h1 style="font-size:1.35rem;font-weight:800">CSI NIGER</h1>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin:0">Portail National de Surveillance</p>
+        </div>
+
+        <div id="login-err" class="hid" style="margin-top:14px"></div>
+
+        <form id="login-form" style="margin-top:18px">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <label class="field">
+              <span>Adresse e-mail</span>
+              <input type="email" id="pw-email" autocomplete="username" placeholder="nom@exemple.ne" required>
+            </label>
+            <label class="field" id="password-field">
+              <span>Mot de passe</span>
+              <div class="password-input-wrap">
+                <input type="password" id="pw-pass" autocomplete="current-password" data-password-input required>
+                <button type="button" class="password-toggle" data-password-toggle="pw-pass" aria-label="Afficher le mot de passe" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </label>
+            <label class="field hid" id="login-code-field">
+              <span>Code de vérification reçu par e-mail</span>
+              <input type="text" id="login-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code">
+            </label>
+          </div>
+
+          <div style="margin-top:14px">
+            <button class="btn btn-primary btn-lg" type="submit" id="login-btn" style="width:100%;justify-content:center;font-weight:700">
+              Se connecter
+            </button>
+          </div>
+        </form>
+
+        <div style="margin-top:12px;text-align:center">
+          <button type="button" class="btn btn-ghost btn-sm" id="forgot-link">Mot de passe oublié ?</button>
+        </div>
+
+        <div class="auth-security-notice" style="margin-top:16px">
+          🔒 Connexion protégée par mot de passe. La vérification à deux étapes peut être activée dans votre profil.
+        </div>
+      </div>
+    </div>
+  `;
+  res.send(html);
+});
+
+// ─── POST /api/login ── Mot de passe puis code e-mail si 2FA activée ─────────
 router.post('/login', validate(schemas.loginSchema), wrap(async (req, res) => {
   const { email, mot_de_passe } = req.body;
-
   const { rows } = await pool.query(
     'SELECT * FROM utilisateurs WHERE email = $1 AND actif = TRUE',
-    [email.toLowerCase().trim()]
+    [email]
   );
-
-  if (!rows[0]) {
-    logger.warn({ email }, 'Tentative connexion email inconnu');
-    await logAudit({ action: 'LOGIN_FAILED', details: { email }, ip_adresse: req.ip });
-    return res.status(401).json({ erreur: 'Email ou mot de passe incorrect' });
-  }
-
   const user = rows[0];
-  const ok = await bcrypt.compare(mot_de_passe, user.mot_de_passe_hash);
-
-  if (!ok) {
-    logger.warn({ userId: user.id }, 'Tentative connexion mauvais mot de passe');
-    await logAudit({ utilisateur_id: user.id, action: 'LOGIN_FAILED', ip_adresse: req.ip });
-    return res.status(401).json({ erreur: 'Email ou mot de passe incorrect' });
+  if (!user || !(await bcrypt.compare(mot_de_passe, user.mot_de_passe_hash))) {
+    return res.status(401).json({ erreur: 'Email ou mot de passe incorrect.' });
   }
 
-  // Mettre à jour la dernière connexion
-  await pool.query('UPDATE utilisateurs SET derniere_connexion = now() WHERE id = $1', [user.id]);
-
-  await logAudit({
-    utilisateur_id: user.id,
-    action: 'LOGIN',
-    table_cible: 'utilisateurs',
-    enregistrement_id: user.id,
-    ip_adresse: req.ip
-  });
-
-  const token = signToken(user);
-
-  logger.info({ userId: user.id, role: user.role }, 'Utilisateur connecté');
-  res.json({
-    token,
-    utilisateur: {
-      id: user.id,
+  if (user.statut_2fa) {
+    const challenge = await issueVerificationCode({
+      userId: user.id,
       email: user.email,
-      nom: user.nom,
-      role: user.role,
-      csi_id: user.csi_id,
-      region_id: user.region_id
-    }
+      purpose: 'login_mfa',
+      ipAddress: req.ip
+    });
+    return res.status(202).json({
+      verification_requise: true,
+      ...challenge,
+      message: `Un code de connexion a été envoyé à ${challenge.email_masque}.`
+    });
+  }
+
+  await pool.query('UPDATE utilisateurs SET derniere_connexion = now() WHERE id = $1', [user.id]);
+  res.json({ token: signToken(user), utilisateur: publicUser(user) });
+}));
+
+router.post('/login/verify-code', validate(schemas.verificationCodeSchema), wrap(async (req, res) => {
+  const userId = await withTransaction(async client => {
+    const { rows } = await client.query(
+      'SELECT user_id FROM auth_verification_codes WHERE challenge_id = $1 FOR UPDATE',
+      [req.body.challenge_id]
+    );
+    if (!rows[0]) return null;
+    const valid = await consumeVerificationCode(client, {
+      ...req.body,
+      userId: rows[0].user_id,
+      purpose: 'login_mfa'
+    });
+    return valid ? rows[0].user_id : null;
   });
+  if (!userId) return invalidCode(res);
+
+  const { rows } = await pool.query(
+    'SELECT * FROM utilisateurs WHERE id = $1 AND actif = TRUE AND statut_2fa = TRUE',
+    [userId]
+  );
+  const user = rows[0];
+  if (!user) return res.status(401).json({ erreur: 'Compte indisponible. Recommencez la connexion.' });
+
+  await pool.query('UPDATE utilisateurs SET derniere_connexion = now() WHERE id = $1', [user.id]);
+  res.json({ token: signToken(user), utilisateur: publicUser(user) });
 }));
 
 // ─── GET /api/me ─────────────────────────────────────────────────────────────
 router.get('/me', auth(), wrap(async (req, res) => {
   const { rows } = await pool.query(
     `SELECT u.id, u.email, u.nom, u.role, u.csi_id, u.region_id,
+            u.telephone, u.whatsapp, u.poste, u.canal_2fa, u.statut_2fa,
+            u.derniere_connexion, u.cree_le,
             c.nom AS csi_nom, g.nom AS region_nom
      FROM utilisateurs u
      LEFT JOIN csi c ON c.id = u.csi_id
@@ -79,21 +167,91 @@ router.get('/me', auth(), wrap(async (req, res) => {
   res.json(rows[0]);
 }));
 
-// ─── POST /api/me/mot-de-passe (Phase 2.2) ──────────────────────────────────
-router.post('/me/mot-de-passe', auth(), validate(schemas.changementMotDePasseSchema), wrap(async (req, res) => {
-  const { ancien_mot_de_passe, nouveau_mot_de_passe } = req.body;
+// ─── PUT /api/me/profil (Mise à jour des informations personnelles) ──────────
+router.put('/me/profil', auth(), validate(schemas.profilSchema), wrap(async (req, res) => {
+  const { nom, telephone, whatsapp, poste } = req.body;
+  const updates = [];
+  const params = [];
+  let idx = 1;
 
-  const { rows } = await pool.query('SELECT id, mot_de_passe_hash FROM utilisateurs WHERE id = $1', [req.user.id]);
+  if (nom && nom.trim().length >= 2) {
+    updates.push(`nom = $${idx++}`);
+    params.push(nom.trim());
+  }
+  if (telephone !== undefined) {
+    updates.push(`telephone = $${idx++}`);
+    params.push(telephone ? telephone.trim() : null);
+  }
+  if (whatsapp !== undefined) {
+    updates.push(`whatsapp = $${idx++}`);
+    params.push(whatsapp ? whatsapp.trim() : null);
+  }
+  if (poste !== undefined) {
+    updates.push(`poste = $${idx++}`);
+    params.push(poste ? poste.trim() : null);
+  }
+  if (updates.length === 0) {
+    return res.status(400).json({ erreur: 'Aucune donnée valide à mettre à jour' });
+  }
+
+  updates.push(`modifie_le = now()`);
+  params.push(req.user.id);
+
+  const sql = `UPDATE utilisateurs SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id, email, nom, role, csi_id, region_id, telephone, whatsapp, poste, canal_2fa, statut_2fa`;
+  const { rows } = await pool.query(sql, params);
+  clearUserCache(req.user.id);
+
+  await logAudit({
+    utilisateur_id: req.user.id,
+    action: 'UPDATE_PROFIL',
+    table_cible: 'utilisateurs',
+    enregistrement_id: req.user.id,
+    ip_adresse: req.ip
+  });
+
+  res.json({ message: 'Profil mis à jour avec succès', utilisateur: rows[0] });
+}));
+
+// ─── POST /api/me/mot-de-passe/demander-code ─────────────────────────────────
+router.post('/me/mot-de-passe/demander-code', auth(), validate(schemas.demandeChangementMotDePasseSchema), wrap(async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT id, email, mot_de_passe_hash FROM utilisateurs WHERE id = $1 AND actif = TRUE',
+    [req.user.id]
+  );
   if (!rows[0]) return res.status(404).json({ erreur: 'Utilisateur introuvable' });
 
-  const ok = await bcrypt.compare(ancien_mot_de_passe, rows[0].mot_de_passe_hash);
+  const ok = await bcrypt.compare(req.body.ancien_mot_de_passe, rows[0].mot_de_passe_hash);
   if (!ok) {
     return res.status(400).json({ erreur: 'Ancien mot de passe incorrect' });
   }
 
-  const hash = await bcrypt.hash(nouveau_mot_de_passe, 12);
-  await pool.query('UPDATE utilisateurs SET mot_de_passe_hash = $1 WHERE id = $2', [hash, req.user.id]);
+  const challenge = await issueVerificationCode({
+    userId: req.user.id,
+    email: rows[0].email,
+    purpose: 'password_change',
+    ipAddress: req.ip
+  });
+  res.status(202).json({ ...challenge, message: `Un code a été envoyé à ${challenge.email_masque}.` });
+}));
 
+router.post('/me/mot-de-passe/valider', auth(), validate(schemas.changementMotDePasseSchema), wrap(async (req, res) => {
+  const newPasswordHash = await bcrypt.hash(req.body.nouveau_mot_de_passe, 12);
+  const changed = await withTransaction(async client => {
+    const valid = await consumeVerificationCode(client, {
+      ...req.body,
+      userId: req.user.id,
+      purpose: 'password_change'
+    });
+    if (!valid) return false;
+    await client.query(
+      `UPDATE utilisateurs
+       SET mot_de_passe_hash = $1, session_version = session_version + 1
+       WHERE id = $2`,
+      [newPasswordHash, req.user.id]
+    );
+    return true;
+  });
+  if (!changed) return invalidCode(res);
   clearUserCache(req.user.id);
 
   await logAudit({
@@ -104,11 +262,124 @@ router.post('/me/mot-de-passe', auth(), validate(schemas.changementMotDePasseSch
     ip_adresse: req.ip
   });
 
-  res.json({ message: 'Mot de passe modifié avec succès' });
+  res.json({ message: 'Mot de passe modifié. Reconnectez-vous avec votre nouveau mot de passe.' });
+}));
+
+router.post('/mot-de-passe-oublie', validate(schemas.demandeReinitialisationSchema), wrap(async (req, res) => {
+  if (!isEmailConfigured()) {
+    return res.status(503).json({ erreur: 'La récupération n’est pas disponible : l’envoi e-mail du serveur doit être configuré.' });
+  }
+  const { rows } = await pool.query(
+    'SELECT id, email FROM utilisateurs WHERE email = $1 AND actif = TRUE',
+    [req.body.email]
+  );
+  let challengeId = crypto.randomUUID();
+  if (rows[0]) {
+    try {
+      const challenge = await issueVerificationCode({
+        userId: rows[0].id,
+        email: rows[0].email,
+        purpose: 'password_reset',
+        ipAddress: req.ip
+      });
+      challengeId = challenge.challenge_id;
+    } catch (error) {
+      if (error.statusCode !== 429) {
+        logger.error({ err: error, userId: rows[0].id }, 'Échec envoi code récupération');
+      }
+    }
+  }
+  res.status(202).json({
+    challenge_id: challengeId,
+    message: 'Si un compte actif correspond à cette adresse, un code de récupération vient d’être envoyé.'
+  });
+}));
+
+router.post('/mot-de-passe-oublie/valider', validate(schemas.changementMotDePasseSchema), wrap(async (req, res) => {
+  const newPasswordHash = await bcrypt.hash(req.body.nouveau_mot_de_passe, 12);
+  const userId = await withTransaction(async client => {
+    const { rows } = await client.query(
+      `SELECT user_id FROM auth_verification_codes
+       WHERE challenge_id = $1 AND purpose = 'password_reset'
+       FOR UPDATE`,
+      [req.body.challenge_id]
+    );
+    if (!rows[0]) return null;
+    const valid = await consumeVerificationCode(client, {
+      ...req.body,
+      userId: rows[0].user_id,
+      purpose: 'password_reset'
+    });
+    if (!valid) return null;
+    const { rows: updated } = await client.query(
+      `UPDATE utilisateurs
+       SET mot_de_passe_hash = $1, session_version = session_version + 1
+       WHERE id = $2 AND actif = TRUE`,
+      [newPasswordHash, rows[0].user_id]
+    );
+    return updated[0]?.id || null;
+  });
+  if (!userId) return invalidCode(res);
+  clearUserCache(userId);
+  await logAudit({
+    utilisateur_id: userId,
+    action: 'RESET_PASSWORD',
+    table_cible: 'utilisateurs',
+    enregistrement_id: userId,
+    ip_adresse: req.ip
+  });
+  res.json({ message: 'Mot de passe réinitialisé. Vous pouvez maintenant vous connecter.' });
+}));
+
+router.post('/me/2fa/demander-code', auth(), wrap(async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT email FROM utilisateurs WHERE id = $1 AND actif = TRUE',
+    [req.user.id]
+  );
+  if (!rows[0]) return res.status(404).json({ erreur: 'Utilisateur introuvable' });
+  const purpose = req.user.statut_2fa ? 'mfa_disable' : 'mfa_setup';
+  const challenge = await issueVerificationCode({
+    userId: req.user.id,
+    email: rows[0].email,
+    purpose,
+    ipAddress: req.ip
+  });
+  res.status(202).json({
+    ...challenge,
+    message: `Un code de vérification a été envoyé à ${challenge.email_masque}.`
+  });
+}));
+
+router.post('/me/2fa/verifier-code', auth(), validate(schemas.verificationCodeSchema), wrap(async (req, res) => {
+  const purpose = req.user.statut_2fa ? 'mfa_disable' : 'mfa_setup';
+  const enabled = !req.user.statut_2fa;
+  const changed = await withTransaction(async client => {
+    const valid = await consumeVerificationCode(client, {
+      ...req.body,
+      userId: req.user.id,
+      purpose
+    });
+    if (!valid) return false;
+    await client.query(
+      'UPDATE utilisateurs SET statut_2fa = $1, canal_2fa = $2, session_version = session_version + 1 WHERE id = $3',
+      [enabled, 'email', req.user.id]
+    );
+    return true;
+  });
+  if (!changed) return invalidCode(res);
+  clearUserCache(req.user.id);
+  await logAudit({
+    utilisateur_id: req.user.id,
+    action: enabled ? 'ENABLE_2FA' : 'DISABLE_2FA',
+    table_cible: 'utilisateurs',
+    enregistrement_id: req.user.id,
+    ip_adresse: req.ip
+  });
+  res.json({ message: enabled ? 'La double authentification par e-mail est activée.' : 'La double authentification est désactivée.' });
 }));
 
 // ─── GET /api/utilisateurs ── Admin et superviseur ───────────────────────────
-router.get('/utilisateurs', auth(['admin', 'superviseur']), wrap(async (req, res) => {
+router.get('/utilisateurs', auth(['admin', 'superviseur', 'superviseur_national']), wrap(async (req, res) => {
   const { role, region_id } = req.user;
   let query = `SELECT u.id, u.email, u.nom, u.role, u.actif, u.csi_id, u.region_id, u.cree_par,
                       u.derniere_connexion, u.cree_le, c.nom AS csi_nom, g.nom AS region_nom,
@@ -123,6 +394,8 @@ router.get('/utilisateurs', auth(['admin', 'superviseur']), wrap(async (req, res
   if (role === 'superviseur' && region_id) {
     query += ` WHERE (u.role = 'agent' AND (u.region_id = $1 OR (u.csi_id IN (SELECT c.id FROM csi c JOIN communes co ON co.id = c.commune_id WHERE co.region_id = $1))))`;
     params.push(region_id);
+  } else if (role === 'superviseur_national') {
+    query += ` WHERE u.role IN ('agent', 'superviseur')`;
   }
 
   query += ' ORDER BY u.role, u.nom';
@@ -131,7 +404,7 @@ router.get('/utilisateurs', auth(['admin', 'superviseur']), wrap(async (req, res
 }));
 
 // ─── POST /api/utilisateurs ── Admin et superviseur (Phase 2.8) ───────────────
-router.post('/utilisateurs', auth(['admin', 'superviseur']), validate(schemas.utilisateurSchema), wrap(async (req, res) => {
+router.post('/utilisateurs', auth(['admin', 'superviseur', 'superviseur_national']), validate(schemas.utilisateurSchema), wrap(async (req, res) => {
   const { email, nom, mot_de_passe, role, csi_id, region_id } = req.body;
 
   if (!mot_de_passe) return res.status(400).json({ erreur: 'Mot de passe requis pour créer un utilisateur' });
@@ -155,7 +428,26 @@ router.post('/utilisateurs', auth(['admin', 'superviseur']), validate(schemas.ut
     }
   }
 
-  const userRegionId = req.user.role === 'superviseur' ? req.user.region_id : (region_id || null);
+  let userRegionId = req.user.role === 'superviseur' ? req.user.region_id : (region_id || null);
+  if (req.user.role === 'superviseur_national') {
+    if (!['agent', 'superviseur'].includes(role)) {
+      return res.status(403).json({ erreur: 'Un superviseur national ne peut créer que des comptes agents ou superviseurs régionaux' });
+    }
+    if (role === 'agent') {
+      if (!csi_id) return res.status(400).json({ erreur: 'Un CSI est obligatoire pour créer un compte agent' });
+      const { rows: csiRows } = await pool.query(
+        `SELECT co.region_id FROM csi c JOIN communes co ON co.id = c.commune_id WHERE c.id = $1 AND c.actif`,
+        [csi_id]
+      );
+      if (!csiRows[0]) return res.status(400).json({ erreur: 'Le CSI spécifié est introuvable ou inactif' });
+      userRegionId = csiRows[0].region_id;
+    } else {
+      if (!region_id) return res.status(400).json({ erreur: 'Une région est obligatoire pour créer un superviseur régional' });
+      const { rows: regionRows } = await pool.query('SELECT 1 FROM regions WHERE id = $1', [region_id]);
+      if (!regionRows[0]) return res.status(400).json({ erreur: 'La région spécifiée est introuvable' });
+    }
+  }
+
   const hash = await bcrypt.hash(mot_de_passe, 12);
 
   try {
@@ -182,13 +474,21 @@ router.post('/utilisateurs', auth(['admin', 'superviseur']), validate(schemas.ut
 }));
 
 // ─── PUT /api/utilisateurs/:id ── Admin ou Superviseur (Phase 2.8 & 2.9) ─────
-router.put('/utilisateurs/:id', auth(['admin', 'superviseur']), validateIdParam('id'), validate(schemas.utilisateurUpdateSchema), wrap(async (req, res) => {
+router.put('/utilisateurs/:id', auth(['admin', 'superviseur', 'superviseur_national']), validateIdParam('id'), validate(schemas.utilisateurUpdateSchema), wrap(async (req, res) => {
   const targetId = parseInt(req.params.id, 10);
   const { email, nom, mot_de_passe, role, csi_id, region_id, actif } = req.body;
 
   const { rows: existingRows } = await pool.query('SELECT * FROM utilisateurs WHERE id = $1', [targetId]);
   if (!existingRows[0]) return res.status(404).json({ erreur: 'Utilisateur introuvable' });
   const targetUser = existingRows[0];
+
+  if (req.user.role === 'superviseur_national' &&
+      (targetUser.role === 'admin' || (targetUser.role === 'superviseur_national' && targetId !== req.user.id))) {
+    return res.status(403).json({ erreur: 'Un superviseur national ne peut pas modifier ce compte' });
+  }
+  if (req.user.role === 'superviseur_national' && targetUser.role === 'superviseur_national' && role !== undefined) {
+    return res.status(400).json({ erreur: 'Vous ne pouvez pas modifier votre propre rôle' });
+  }
 
   // Règle 2.8 : Superviseur ne gère que les agents de sa région
   if (req.user.role === 'superviseur') {
@@ -218,6 +518,33 @@ router.put('/utilisateurs/:id', auth(['admin', 'superviseur']), validateIdParam(
       if (!newCsiCheck[0]) {
         return res.status(403).json({ erreur: 'Le nouveau CSI doit appartenir à votre région' });
       }
+    }
+  }
+
+  let nationalAgentRegionId = null;
+  if (req.user.role === 'superviseur_national') {
+    if (role === 'admin' || role === 'superviseur_national') {
+      return res.status(403).json({ erreur: 'Un superviseur national ne peut pas attribuer un rôle administrateur ou superviseur national' });
+    }
+    if (role === 'superviseur' && !region_id && targetUser.role !== 'superviseur') {
+      return res.status(400).json({ erreur: 'Une région est obligatoire pour un superviseur régional' });
+    }
+    if ((role || targetUser.role) === 'superviseur' && region_id !== undefined) {
+      if (!region_id) return res.status(400).json({ erreur: 'Une région est obligatoire pour un superviseur régional' });
+      const { rows: regionRows } = await pool.query('SELECT 1 FROM regions WHERE id = $1', [region_id]);
+      if (!regionRows[0]) return res.status(400).json({ erreur: 'La région spécifiée est introuvable' });
+    }
+    if ((role || targetUser.role) === 'agent') {
+      const assignedCsiId = csi_id !== undefined ? csi_id : targetUser.csi_id;
+      if (!assignedCsiId) return res.status(400).json({ erreur: 'Un CSI est obligatoire pour un compte agent' });
+      const { rows: csiRows } = await pool.query(
+        `SELECT co.region_id FROM csi c
+         JOIN communes co ON co.id = c.commune_id
+         WHERE c.id = $1 AND c.actif`,
+        [assignedCsiId]
+      );
+      if (!csiRows[0]) return res.status(400).json({ erreur: 'Le CSI spécifié est introuvable ou inactif' });
+      nationalAgentRegionId = csiRows[0].region_id;
     }
   }
 
@@ -252,9 +579,15 @@ router.put('/utilisateurs/:id', auth(['admin', 'superviseur']), validateIdParam(
   }
 
   if (nom !== undefined)       { updates.push(`nom = $${i++}`);       params.push(nom.trim()); }
-  if (role !== undefined && req.user.role === 'admin') { updates.push(`role = $${i++}`); params.push(role); }
+  if (role !== undefined && (req.user.role === 'admin' || req.user.role === 'superviseur_national')) { updates.push(`role = $${i++}`); params.push(role); }
   if (csi_id !== undefined)    { updates.push(`csi_id = $${i++}`);    params.push(csi_id || null); }
-  if (region_id !== undefined && req.user.role === 'admin') { updates.push(`region_id = $${i++}`); params.push(region_id || null); }
+  if (region_id !== undefined && (req.user.role === 'admin' || req.user.role === 'superviseur_national')) { updates.push(`region_id = $${i++}`); params.push(region_id || null); }
+  if (req.user.role === 'superviseur_national' && nationalAgentRegionId !== null) {
+    updates.push(`region_id = $${i++}`);
+    params.push(nationalAgentRegionId);
+  } else if (req.user.role === 'superviseur_national' && role === 'superviseur') {
+    updates.push(`csi_id = NULL`);
+  }
   if (actif !== undefined)     { updates.push(`actif = $${i++}`);     params.push(actif); }
 
   if (mot_de_passe) {
@@ -268,7 +601,9 @@ router.put('/utilisateurs/:id', auth(['admin', 'superviseur']), validateIdParam(
 
   params.push(targetId);
   const { rows } = await pool.query(
-    `UPDATE utilisateurs SET ${updates.join(', ')} WHERE id = $${i} RETURNING id, email, nom, role, actif, csi_id, region_id, cree_par`,
+    `UPDATE utilisateurs SET ${updates.join(', ')}, session_version = session_version + 1
+     WHERE id = $${i}
+     RETURNING id, email, nom, role, actif, csi_id, region_id, cree_par`,
     params
   );
 
@@ -287,7 +622,7 @@ router.put('/utilisateurs/:id', auth(['admin', 'superviseur']), validateIdParam(
 }));
 
 // ─── DELETE /api/utilisateurs/:id ── Admin ou Superviseur (Phase 2.8 & 2.9) ──
-router.delete('/utilisateurs/:id', auth(['admin', 'superviseur']), validateIdParam('id'), wrap(async (req, res) => {
+router.delete('/utilisateurs/:id', auth(['admin', 'superviseur', 'superviseur_national']), validateIdParam('id'), wrap(async (req, res) => {
   const targetId = parseInt(req.params.id, 10);
   if (targetId === req.user.id) {
     return res.status(400).json({ erreur: 'Vous ne pouvez pas vous supprimer ou vous désactiver vous-même' });
@@ -296,6 +631,11 @@ router.delete('/utilisateurs/:id', auth(['admin', 'superviseur']), validateIdPar
   const { rows: existingRows } = await pool.query('SELECT * FROM utilisateurs WHERE id = $1', [targetId]);
   if (!existingRows[0]) return res.status(404).json({ erreur: 'Utilisateur introuvable' });
   const targetUser = existingRows[0];
+
+  if (req.user.role === 'superviseur_national' &&
+      (targetUser.role === 'admin' || targetUser.role === 'superviseur_national')) {
+    return res.status(403).json({ erreur: 'Un superviseur national ne peut pas supprimer un compte administrateur ou superviseur national' });
+  }
 
   // Superviseur : agents de sa région uniquement (désactivation uniquement)
   if (req.user.role === 'superviseur') {
@@ -346,7 +686,7 @@ router.delete('/utilisateurs/:id', auth(['admin', 'superviseur']), validateIdPar
   }
 
   const { rows } = await pool.query(
-    'UPDATE utilisateurs SET actif = FALSE WHERE id = $1 RETURNING id, email, nom, role, actif, cree_par',
+    'UPDATE utilisateurs SET actif = FALSE, session_version = session_version + 1 WHERE id = $1 RETURNING id, email, nom, role, actif, cree_par',
     [targetId]
   );
 

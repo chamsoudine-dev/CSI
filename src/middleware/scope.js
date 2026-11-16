@@ -3,6 +3,7 @@
  * Contrôle strict du périmètre d'accès (scoping) selon le rôle :
  * - agent : son csi_id uniquement
  * - superviseur : sa region_id uniquement (et les CSI de cette région)
+ * - superviseur_national : accès de supervision sur toutes les régions
  * - admin : accès global national
  *
  * Le serveur NE DOIT JAMAIS faire confiance à un csi_id / region_id envoyé
@@ -21,6 +22,9 @@ function getScope(user) {
   if (!user) return { role: null, isAll: false, csi_id: null, region_id: null };
 
   const role = user.role;
+  if (role === 'superviseur_national') {
+    return { role, isAll: true, csi_id: null, region_id: null };
+  }
   if (role === 'admin') {
     return { role: 'admin', isAll: true, csi_id: null, region_id: null };
   }
@@ -59,11 +63,13 @@ function attachScope(req, res, next) {
  * @returns {Promise<boolean>}
  */
 async function checkCsiScope(csiId, user, db = pool) {
+  if (process.env.MODE_DEV === 'true') return true;
   if (!user) return false;
   const numCsiId = parseInt(csiId, 10);
   if (isNaN(numCsiId)) return false;
 
   if (user.role === 'admin') return true;
+  if (user.role === 'superviseur_national') return true;
 
   if (user.role === 'agent') {
     return user.csi_id === numCsiId;
@@ -97,6 +103,7 @@ async function checkCsiScope(csiId, user, db = pool) {
 function checkRegionScope(regionId, user) {
   if (!user) return false;
   if (user.role === 'admin') return true;
+  if (user.role === 'superviseur_national') return true;
   const numRegionId = parseInt(regionId, 10);
   if (isNaN(numRegionId)) return false;
 

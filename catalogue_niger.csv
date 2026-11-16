@@ -1,0 +1,471 @@
+dci,atc,classe,dosage,forme,ordonnance
+artéméther-luméfantrine,P01BF01,Antipaludique,20 mg/120 mg,comprimé,O
+artéméther-luméfantrine,P01BF01,Antipaludique,40 mg/240 mg,comprimé,O
+artéméther-luméfantrine,P01BF01,Antipaludique,80 mg/480 mg,comprimé,O
+artésunate-amodiaquine,,Antipaludique,25 mg/67.5 mg,comprimé,O
+artésunate-amodiaquine,,Antipaludique,50 mg/135 mg,comprimé,O
+artésunate-amodiaquine,,Antipaludique,100 mg/270 mg,comprimé,O
+artésunate,P01BE03,Antipaludique,60 mg,injectable,O
+artésunate,P01BE03,Antipaludique,50 mg,suppositoire,O
+artéméther,P01BE02,Antipaludique,80 mg/ml,injectable,O
+quinine,P01BC01,Antipaludique,300 mg,comprimé,O
+quinine,P01BC01,Antipaludique,300 mg/ml,injectable,O
+sulfadoxine-pyriméthamine,P01BD51,Antipaludique (TPI grossesse/CPS),500 mg/25 mg,comprimé,O
+amodiaquine,P01BA06,Antipaludique (CPS),153 mg,comprimé,O
+dihydroartémisinine-pipéraquine,P01BF05,Antipaludique,40 mg/320 mg,comprimé,O
+primaquine,P01BA03,Antipaludique,15 mg,comprimé,O
+chloroquine,P01BA01,Antipaludique,100 mg,comprimé,O
+atovaquone-proguanil,P01BB51,Antipaludique,250 mg/100 mg,comprimé,O
+méfloquine,P01BC02,Antipaludique,250 mg,comprimé,O
+paracétamol,N02BE01,Antalgique,500 mg,comprimé,N
+paracétamol,N02BE01,Antalgique,1000 mg,comprimé,N
+paracétamol,N02BE01,Antalgique,120 mg/5 ml,sirop,N
+paracétamol,N02BE01,Antalgique,100 mg/ml,gouttes buvables,N
+paracétamol,N02BE01,Antalgique,150 mg,suppositoire,N
+paracétamol,N02BE01,Antalgique,300 mg,suppositoire,N
+paracétamol,N02BE01,Antalgique,1 g/100 ml,perfusion,O
+ibuprofène,M01AE01,Anti-inflammatoire,200 mg,comprimé,N
+ibuprofène,M01AE01,Anti-inflammatoire,400 mg,comprimé,O
+ibuprofène,M01AE01,Anti-inflammatoire,100 mg/5 ml,sirop,N
+diclofénac,M01AB05,Anti-inflammatoire,50 mg,comprimé,O
+diclofénac,M01AB05,Anti-inflammatoire,75 mg/3 ml,injectable,O
+diclofénac,M01AB05,Anti-inflammatoire,1%,gel,N
+diclofénac,M01AB05,Anti-inflammatoire,100 mg,suppositoire,O
+acide acétylsalicylique,N02BA01,Antalgique/antiagrégant,100 mg,comprimé,N
+acide acétylsalicylique,N02BA01,Antalgique,500 mg,comprimé,N
+kétoprofène,M01AE03,Anti-inflammatoire,50 mg,gélule,O
+kétoprofène,M01AE03,Anti-inflammatoire,100 mg,comprimé,O
+kétoprofène,M01AE03,Anti-inflammatoire,100 mg/2 ml,injectable,O
+naproxène,M01AE02,Anti-inflammatoire,250 mg,comprimé,O
+naproxène,M01AE02,Anti-inflammatoire,500 mg,comprimé,O
+piroxicam,M01AC01,Anti-inflammatoire,20 mg,gélule,O
+piroxicam,M01AC01,Anti-inflammatoire,20 mg/ml,injectable,O
+méloxicam,M01AC06,Anti-inflammatoire,7.5 mg,comprimé,O
+méloxicam,M01AC06,Anti-inflammatoire,15 mg,comprimé,O
+indométacine,M01AB01,Anti-inflammatoire,25 mg,gélule,O
+tramadol,N02AX02,Antalgique opioïde,50 mg,gélule,O
+tramadol,N02AX02,Antalgique opioïde,100 mg/2 ml,injectable,O
+codéine-paracétamol,N02AA59,Antalgique opioïde,30 mg/500 mg,comprimé,O
+morphine,N02AA01,Antalgique opioïde,10 mg/ml,injectable,O
+morphine,N02AA01,Antalgique opioïde,10 mg,comprimé,O
+néfopam,N02BG06,Antalgique,20 mg/2 ml,injectable,O
+colchicine,M04AC01,Antigoutteux,1 mg,comprimé,O
+allopurinol,M04AA01,Antigoutteux,100 mg,comprimé,O
+allopurinol,M04AA01,Antigoutteux,300 mg,comprimé,O
+thiocolchicoside,M03BX05,Myorelaxant,4 mg,comprimé,O
+amoxicilline,J01CA04,Antibiotique,250 mg,gélule,O
+amoxicilline,J01CA04,Antibiotique,500 mg,gélule,O
+amoxicilline,J01CA04,Antibiotique,500 mg,comprimé,O
+amoxicilline,J01CA04,Antibiotique,250 mg dispersible,comprimé,O
+amoxicilline,J01CA04,Antibiotique,125 mg/5 ml,suspension buvable,O
+amoxicilline,J01CA04,Antibiotique,250 mg/5 ml,suspension buvable,O
+amoxicilline,J01CA04,Antibiotique,1 g,injectable,O
+amoxicilline-acide clavulanique,J01CR02,Antibiotique,500 mg/125 mg,comprimé,O
+amoxicilline-acide clavulanique,J01CR02,Antibiotique,875 mg/125 mg,comprimé,O
+amoxicilline-acide clavulanique,J01CR02,Antibiotique,1000 mg/200 mg,injectable,O
+amoxicilline-acide clavulanique,J01CR02,Antibiotique,125 mg/31.25 mg/5 ml,suspension buvable,O
+ampicilline,J01CA01,Antibiotique,500 mg,injectable,O
+ampicilline,J01CA01,Antibiotique,1 g,injectable,O
+benzylpénicilline,J01CE01,Antibiotique,1 MUI,injectable,O
+benzylpénicilline,J01CE01,Antibiotique,5 MUI,injectable,O
+benzathine benzylpénicilline,J01CE08,Antibiotique,2.4 MUI,injectable,O
+benzathine benzylpénicilline,J01CE08,Antibiotique,1.2 MUI,injectable,O
+phénoxyméthylpénicilline,J01CE02,Antibiotique,250 mg,comprimé,O
+cloxacilline,J01CF02,Antibiotique,500 mg,gélule,O
+cloxacilline,J01CF02,Antibiotique,500 mg,injectable,O
+ceftriaxone,J01DD04,Antibiotique,250 mg,injectable,O
+ceftriaxone,J01DD04,Antibiotique,500 mg,injectable,O
+ceftriaxone,J01DD04,Antibiotique,1 g,injectable,O
+céfixime,J01DD08,Antibiotique,200 mg,comprimé,O
+céfixime,J01DD08,Antibiotique,100 mg/5 ml,suspension buvable,O
+céfotaxime,J01DD01,Antibiotique,1 g,injectable,O
+ceftazidime,J01DD02,Antibiotique,1 g,injectable,O
+céfalexine,J01DB01,Antibiotique,500 mg,gélule,O
+céfadroxil,J01DB05,Antibiotique,500 mg,gélule,O
+céfuroxime,J01DC02,Antibiotique,250 mg,comprimé,O
+céfuroxime,J01DC02,Antibiotique,500 mg,comprimé,O
+céfazoline,J01DB04,Antibiotique,1 g,injectable,O
+gentamicine,J01GB03,Antibiotique,40 mg/2 ml,injectable,O
+gentamicine,J01GB03,Antibiotique,80 mg/2 ml,injectable,O
+amikacine,J01GB06,Antibiotique,500 mg/2 ml,injectable,O
+streptomycine,J01GA01,Antibiotique,1 g,injectable,O
+azithromycine,J01FA10,Antibiotique,250 mg,comprimé,O
+azithromycine,J01FA10,Antibiotique,500 mg,comprimé,O
+azithromycine,J01FA10,Antibiotique,200 mg/5 ml,suspension buvable,O
+érythromycine,J01FA01,Antibiotique,250 mg,comprimé,O
+érythromycine,J01FA01,Antibiotique,500 mg,comprimé,O
+érythromycine,J01FA01,Antibiotique,125 mg/5 ml,suspension buvable,O
+clarithromycine,J01FA09,Antibiotique,250 mg,comprimé,O
+clarithromycine,J01FA09,Antibiotique,500 mg,comprimé,O
+spiramycine,J01FA02,Antibiotique,3 MUI,comprimé,O
+spiramycine-métronidazole,J01RA04,Antibiotique,1.5 MUI/250 mg,comprimé,O
+ciprofloxacine,J01MA02,Antibiotique,250 mg,comprimé,O
+ciprofloxacine,J01MA02,Antibiotique,500 mg,comprimé,O
+ciprofloxacine,J01MA02,Antibiotique,200 mg/100 ml,perfusion,O
+ofloxacine,J01MA01,Antibiotique,200 mg,comprimé,O
+lévofloxacine,J01MA12,Antibiotique,500 mg,comprimé,O
+norfloxacine,J01MA06,Antibiotique,400 mg,comprimé,O
+acide nalidixique,J01MB02,Antibiotique,500 mg,comprimé,O
+doxycycline,J01AA02,Antibiotique,100 mg,comprimé,O
+tétracycline,J01AA07,Antibiotique,250 mg,gélule,O
+chloramphénicol,J01BA01,Antibiotique,250 mg,gélule,O
+chloramphénicol,J01BA01,Antibiotique,1 g,injectable,O
+cotrimoxazole,J01EE01,Antibiotique,400 mg/80 mg,comprimé,O
+cotrimoxazole,J01EE01,Antibiotique,800 mg/160 mg,comprimé,O
+cotrimoxazole,J01EE01,Antibiotique,200 mg/40 mg/5 ml,suspension buvable,O
+métronidazole,P01AB01,Antibiotique/antiparasitaire,250 mg,comprimé,O
+métronidazole,P01AB01,Antibiotique/antiparasitaire,500 mg,comprimé,O
+métronidazole,P01AB01,Antibiotique/antiparasitaire,500 mg/100 ml,perfusion,O
+métronidazole,P01AB01,Antibiotique/antiparasitaire,125 mg/5 ml,suspension buvable,O
+métronidazole,G01AF01,Antibiotique/antiparasitaire,500 mg,ovule,O
+tinidazole,P01AB02,Antiparasitaire,500 mg,comprimé,O
+secnidazole,P01AB07,Antiparasitaire,500 mg,comprimé,O
+clindamycine,J01FF01,Antibiotique,150 mg,gélule,O
+clindamycine,J01FF01,Antibiotique,300 mg,gélule,O
+clindamycine,J01FF01,Antibiotique,600 mg/4 ml,injectable,O
+vancomycine,J01XA01,Antibiotique,500 mg,injectable,O
+nitrofurantoïne,J01XE01,Antibiotique,100 mg,comprimé,O
+fosfomycine,J01XX01,Antibiotique,3 g,sachet,O
+imipénème-cilastatine,J01DH51,Antibiotique,500 mg/500 mg,injectable,O
+méropénème,J01DH02,Antibiotique,1 g,injectable,O
+isoniazide,J04AC01,Antituberculeux,100 mg,comprimé,O
+isoniazide,J04AC01,Antituberculeux,300 mg,comprimé,O
+rifampicine,J04AB02,Antituberculeux,150 mg,gélule,O
+rifampicine,J04AB02,Antituberculeux,300 mg,gélule,O
+pyrazinamide,J04AK01,Antituberculeux,400 mg,comprimé,O
+éthambutol,J04AK02,Antituberculeux,400 mg,comprimé,O
+rifampicine-isoniazide,J04AM02,Antituberculeux,150 mg/75 mg,comprimé,O
+rifampicine-isoniazide-pyrazinamide-éthambutol,J04AM06,Antituberculeux,150/75/400/275 mg,comprimé,O
+dapsone,J04BA02,Antilépreux,100 mg,comprimé,O
+clofazimine,J04BA01,Antilépreux,100 mg,capsule,O
+fluconazole,J02AC01,Antifongique,50 mg,gélule,O
+fluconazole,J02AC01,Antifongique,150 mg,gélule,O
+fluconazole,J02AC01,Antifongique,200 mg,gélule,O
+kétoconazole,J02AB02,Antifongique,200 mg,comprimé,O
+griséofulvine,D01BA01,Antifongique,500 mg,comprimé,O
+nystatine,A07AA02,Antifongique,100000 UI/ml,suspension buvable,O
+clotrimazole,G01AF02,Antifongique,100 mg,ovule,O
+clotrimazole,D01AC01,Antifongique,1%,crème,N
+miconazole,D01AC02,Antifongique,2%,crème,N
+miconazole,A07AC01,Antifongique,2%,gel buccal,N
+terbinafine,D01BA02,Antifongique,250 mg,comprimé,O
+itraconazole,J02AC02,Antifongique,100 mg,gélule,O
+amphotéricine B,J02AA01,Antifongique,50 mg,injectable,O
+éconazole,G01AF05,Antifongique,150 mg,ovule,O
+albendazole,P02CA03,Antiparasitaire,400 mg,comprimé,N
+albendazole,P02CA03,Antiparasitaire,200 mg/5 ml,suspension buvable,N
+mébendazole,P02CA01,Antiparasitaire,100 mg,comprimé,N
+mébendazole,P02CA01,Antiparasitaire,500 mg,comprimé,N
+praziquantel,P02BA01,Antiparasitaire (bilharziose),600 mg,comprimé,O
+ivermectine,P02CF01,Antiparasitaire,3 mg,comprimé,O
+ivermectine,P02CF01,Antiparasitaire,6 mg,comprimé,O
+pyrantel,P02CC01,Antiparasitaire,250 mg,comprimé,N
+niclosamide,P02DA01,Antiparasitaire,500 mg,comprimé,O
+diéthylcarbamazine,P02CB02,Antiparasitaire,100 mg,comprimé,O
+lévamisole,P02CE01,Antiparasitaire,40 mg,comprimé,O
+benzoate de benzyle,P03AX01,Antiscabieux,25%,lotion,N
+perméthrine,P03AC04,Antiscabieux,5%,crème,N
+ténofovir disoproxil,J05AF07,Antirétroviral,300 mg,comprimé,O
+lamivudine,J05AF05,Antirétroviral,150 mg,comprimé,O
+lamivudine,J05AF05,Antirétroviral,300 mg,comprimé,O
+zidovudine,J05AF01,Antirétroviral,300 mg,comprimé,O
+zidovudine,J05AF01,Antirétroviral,50 mg/5 ml,sirop,O
+abacavir,J05AF06,Antirétroviral,300 mg,comprimé,O
+éfavirenz,J05AG03,Antirétroviral,600 mg,comprimé,O
+névirapine,J05AG01,Antirétroviral,200 mg,comprimé,O
+névirapine,J05AG01,Antirétroviral,50 mg/5 ml,suspension buvable,O
+dolutégravir,J05AX12,Antirétroviral,50 mg,comprimé,O
+ténofovir-lamivudine-dolutégravir,,Antirétroviral,300/300/50 mg,comprimé,O
+ténofovir-lamivudine-éfavirenz,,Antirétroviral,300/300/600 mg,comprimé,O
+ténofovir-lamivudine,,Antirétroviral,300 mg/300 mg,comprimé,O
+lopinavir-ritonavir,J05AR10,Antirétroviral,200 mg/50 mg,comprimé,O
+ritonavir,J05AE03,Antirétroviral,100 mg,comprimé,O
+emtricitabine-ténofovir,,Antirétroviral (PrEP),200 mg/300 mg,comprimé,O
+aciclovir,J05AB01,Antiviral,200 mg,comprimé,O
+aciclovir,J05AB01,Antiviral,400 mg,comprimé,O
+aciclovir,D06BB03,Antiviral,5%,crème,N
+oseltamivir,J05AH02,Antiviral,75 mg,gélule,O
+entécavir,J05AF10,Antiviral (hépatite B),0.5 mg,comprimé,O
+amlodipine,C08CA01,Antihypertenseur,5 mg,comprimé,O
+amlodipine,C08CA01,Antihypertenseur,10 mg,comprimé,O
+nifédipine,C08CA05,Antihypertenseur,10 mg,comprimé,O
+nifédipine,C08CA05,Antihypertenseur,20 mg LP,comprimé,O
+vérapamil,C08DA01,Antihypertenseur,80 mg,comprimé,O
+diltiazem,C08DB01,Antihypertenseur,60 mg,comprimé,O
+captopril,C09AA01,Antihypertenseur,25 mg,comprimé,O
+énalapril,C09AA02,Antihypertenseur,5 mg,comprimé,O
+énalapril,C09AA02,Antihypertenseur,20 mg,comprimé,O
+lisinopril,C09AA03,Antihypertenseur,5 mg,comprimé,O
+lisinopril,C09AA03,Antihypertenseur,10 mg,comprimé,O
+périndopril,C09AA04,Antihypertenseur,4 mg,comprimé,O
+ramipril,C09AA05,Antihypertenseur,5 mg,comprimé,O
+losartan,C09CA01,Antihypertenseur,50 mg,comprimé,O
+valsartan,C09CA03,Antihypertenseur,80 mg,comprimé,O
+hydrochlorothiazide,C03AA03,Diurétique,25 mg,comprimé,O
+furosémide,C03CA01,Diurétique,40 mg,comprimé,O
+furosémide,C03CA01,Diurétique,20 mg/2 ml,injectable,O
+spironolactone,C03DA01,Diurétique,25 mg,comprimé,O
+spironolactone,C03DA01,Diurétique,50 mg,comprimé,O
+spironolactone,C03DA01,Diurétique,100 mg,comprimé,O
+indapamide,C03BA11,Diurétique,1.5 mg,comprimé,O
+aténolol,C07AB03,Bêtabloquant,50 mg,comprimé,O
+aténolol,C07AB03,Bêtabloquant,100 mg,comprimé,O
+bisoprolol,C07AB07,Bêtabloquant,5 mg,comprimé,O
+propranolol,C07AA05,Bêtabloquant,40 mg,comprimé,O
+métoprolol,C07AB02,Bêtabloquant,50 mg,comprimé,O
+carvédilol,C07AG02,Bêtabloquant,6.25 mg,comprimé,O
+labétalol,C07AG01,Antihypertenseur,100 mg,comprimé,O
+méthyldopa,C02AB01,Antihypertenseur (grossesse),250 mg,comprimé,O
+hydralazine,C02DB02,Antihypertenseur,25 mg,comprimé,O
+hydralazine,C02DB02,Antihypertenseur,20 mg,injectable,O
+clonidine,C02AC01,Antihypertenseur,0.15 mg,comprimé,O
+digoxine,C01AA05,Cardiotonique,0.25 mg,comprimé,O
+amiodarone,C01BD01,Antiarythmique,200 mg,comprimé,O
+amiodarone,C01BD01,Antiarythmique,150 mg/3 ml,injectable,O
+isosorbide dinitrate,C01DA08,Antiangineux,10 mg,comprimé,O
+trinitrine,C01DA02,Antiangineux,0.3 mg,comprimé sublingual,O
+atorvastatine,C10AA05,Hypolipémiant,10 mg,comprimé,O
+atorvastatine,C10AA05,Hypolipémiant,20 mg,comprimé,O
+atorvastatine,C10AA05,Hypolipémiant,40 mg,comprimé,O
+simvastatine,C10AA01,Hypolipémiant,20 mg,comprimé,O
+fénofibrate,C10AB05,Hypolipémiant,200 mg,gélule,O
+clopidogrel,B01AC04,Antiagrégant,75 mg,comprimé,O
+warfarine,B01AA03,Anticoagulant,5 mg,comprimé,O
+acénocoumarol,B01AA07,Anticoagulant,4 mg,comprimé,O
+héparine sodique,B01AB01,Anticoagulant,5000 UI/ml,injectable,O
+énoxaparine,B01AB05,Anticoagulant,4000 UI/0.4 ml,injectable,O
+adrénaline,C01CA24,Urgence,1 mg/ml,injectable,O
+dopamine,C01CA04,Urgence,200 mg/5 ml,injectable,O
+dobutamine,C01CA07,Urgence,250 mg/20 ml,injectable,O
+metformine,A10BA02,Antidiabétique,500 mg,comprimé,O
+metformine,A10BA02,Antidiabétique,850 mg,comprimé,O
+metformine,A10BA02,Antidiabétique,1000 mg,comprimé,O
+glibenclamide,A10BB01,Antidiabétique,5 mg,comprimé,O
+gliclazide,A10BB09,Antidiabétique,80 mg,comprimé,O
+gliclazide,A10BB09,Antidiabétique,30 mg LM,comprimé,O
+glimépiride,A10BB12,Antidiabétique,2 mg,comprimé,O
+glimépiride,A10BB12,Antidiabétique,4 mg,comprimé,O
+pioglitazone,A10BG03,Antidiabétique,15 mg,comprimé,O
+pioglitazone,A10BG03,Antidiabétique,30 mg,comprimé,O
+sitagliptine,A10BH01,Antidiabétique,100 mg,comprimé,O
+insuline humaine rapide,A10AB01,Antidiabétique,100 UI/ml,injectable,O
+insuline NPH,A10AC01,Antidiabétique,100 UI/ml,injectable,O
+insuline mixte 30/70,A10AD01,Antidiabétique,100 UI/ml,injectable,O
+glucagon,H04AA01,Antihypoglycémiant,1 mg,injectable,O
+salbutamol,R03AC02,Antiasthmatique,100 µg/dose,aérosol doseur,O
+salbutamol,R03AC02,Antiasthmatique,2 mg,comprimé,O
+salbutamol,R03AC02,Antiasthmatique,4 mg,comprimé,O
+salbutamol,R03AC02,Antiasthmatique,2 mg/5 ml,sirop,O
+salbutamol,R03AC02,Antiasthmatique,5 mg/ml,solution pour nébuliseur,O
+terbutaline,R03AC03,Antiasthmatique,0.5 mg/ml,injectable,O
+béclométasone,R03BA01,Antiasthmatique,250 µg/dose,aérosol doseur,O
+budésonide,R03BA02,Antiasthmatique,200 µg/dose,inhalateur,O
+ipratropium,R03BB01,Antiasthmatique,20 µg/dose,aérosol doseur,O
+théophylline,R03DA04,Antiasthmatique,200 mg,comprimé,O
+aminophylline,R03DA05,Antiasthmatique,250 mg/10 ml,injectable,O
+montélukast,R03DC03,Antiasthmatique,10 mg,comprimé,O
+prednisolone,H02AB06,Corticoïde,5 mg,comprimé,O
+prednisolone,H02AB06,Corticoïde,20 mg,comprimé,O
+prednisone,H02AB07,Corticoïde,5 mg,comprimé,O
+prednisone,H02AB07,Corticoïde,20 mg,comprimé,O
+dexaméthasone,H02AB02,Corticoïde,0.5 mg,comprimé,O
+dexaméthasone,H02AB02,Corticoïde,4 mg/ml,injectable,O
+hydrocortisone,H02AB09,Corticoïde,100 mg,injectable,O
+méthylprednisolone,H02AB04,Corticoïde,40 mg,injectable,O
+carbocistéine,R05CB03,Mucolytique,5%,sirop,N
+ambroxol,R05CB06,Mucolytique,30 mg,comprimé,N
+ambroxol,R05CB06,Mucolytique,15 mg/5 ml,sirop,N
+acétylcystéine,R05CB01,Mucolytique,200 mg,sachet,N
+bromhexine,R05CB02,Mucolytique,8 mg,comprimé,N
+dextrométhorphane,R05DA09,Antitussif,15 mg/5 ml,sirop,N
+cétirizine,R06AE07,Antihistaminique,10 mg,comprimé,N
+cétirizine,R06AE07,Antihistaminique,5 mg/5 ml,sirop,N
+loratadine,R06AX13,Antihistaminique,10 mg,comprimé,N
+desloratadine,R06AX27,Antihistaminique,5 mg,comprimé,N
+chlorphénamine,R06AB04,Antihistaminique,4 mg,comprimé,N
+prométhazine,R06AD02,Antihistaminique,25 mg,comprimé,O
+prométhazine,R06AD02,Antihistaminique,50 mg/2 ml,injectable,O
+hydroxyzine,N05BB01,Antihistaminique/anxiolytique,25 mg,comprimé,O
+kétotifène,R06AX17,Antihistaminique,1 mg,comprimé,O
+oméprazole,A02BC01,Antiulcéreux,20 mg,gélule,N
+oméprazole,A02BC01,Antiulcéreux,40 mg,injectable,O
+ésoméprazole,A02BC05,Antiulcéreux,20 mg,comprimé,O
+ésoméprazole,A02BC05,Antiulcéreux,40 mg,comprimé,O
+pantoprazole,A02BC02,Antiulcéreux,40 mg,comprimé,O
+lansoprazole,A02BC03,Antiulcéreux,30 mg,gélule,O
+famotidine,A02BA03,Antiulcéreux,20 mg,comprimé,O
+famotidine,A02BA03,Antiulcéreux,40 mg,comprimé,O
+hydroxyde d'aluminium-hydroxyde de magnésium,A02AD01,Antiacide,—,suspension buvable,N
+hydroxyde d'aluminium-hydroxyde de magnésium,A02AD01,Antiacide,—,comprimé à croquer,N
+métoclopramide,A03FA01,Antiémétique,10 mg,comprimé,O
+métoclopramide,A03FA01,Antiémétique,10 mg/2 ml,injectable,O
+dompéridone,A03FA03,Antiémétique,10 mg,comprimé,O
+ondansétron,A04AA01,Antiémétique,4 mg,comprimé,O
+ondansétron,A04AA01,Antiémétique,8 mg,comprimé,O
+ondansétron,A04AA01,Antiémétique,4 mg/2 ml,injectable,O
+butylbromure de hyoscine,A03BB01,Antispasmodique,10 mg,comprimé,N
+butylbromure de hyoscine,A03BB01,Antispasmodique,20 mg/ml,injectable,O
+phloroglucinol,A03AX12,Antispasmodique,80 mg,comprimé,N
+phloroglucinol,A03AX12,Antispasmodique,40 mg/4 ml,injectable,O
+siméticone,A03AX13,Antiflatulent,40 mg,comprimé,N
+lopéramide,A07DA03,Antidiarrhéique,2 mg,gélule,N
+sels de réhydratation orale,A07CA,Réhydratation (SRO),—,sachet,N
+zinc sulfate,A12CB01,Diarrhée de l'enfant,20 mg,comprimé dispersible,N
+diosmectite,A07BC05,Antidiarrhéique,3 g,sachet,N
+racécadotril,A07XA04,Antidiarrhéique,100 mg,gélule,O
+charbon activé,A07BA01,Antidiarrhéique/antidote,—,poudre,N
+bisacodyl,A06AB02,Laxatif,5 mg,comprimé,N
+bisacodyl,A06AB02,Laxatif,10 mg,suppositoire,N
+lactulose,A06AD11,Laxatif,10 g/15 ml,sirop,N
+glycérol,A06AX01,Laxatif,—,suppositoire,N
+macrogol,A06AD15,Laxatif,10 g,sachet,N
+sulfasalazine,A07EC01,Anti-inflammatoire intestinal,500 mg,comprimé,O
+mésalazine,A07EC02,Anti-inflammatoire intestinal,500 mg,comprimé,O
+acide ursodésoxycholique,A05AA02,Hépatobiliaire,250 mg,gélule,O
+lactobacillus,A07FA,Probiotique,—,gélule,N
+diazépam,N05BA01,Anxiolytique/anticonvulsivant,5 mg,comprimé,O
+diazépam,N05BA01,Anxiolytique/anticonvulsivant,10 mg,comprimé,O
+diazépam,N05BA01,Anxiolytique/anticonvulsivant,10 mg/2 ml,injectable,O
+diazépam,N05BA01,Anticonvulsivant,5 mg,solution rectale,O
+lorazépam,N05BA06,Anxiolytique,1 mg,comprimé,O
+lorazépam,N05BA06,Anxiolytique,2.5 mg,comprimé,O
+bromazépam,N05BA08,Anxiolytique,6 mg,comprimé,O
+midazolam,N05CD08,Sédatif,5 mg/ml,injectable,O
+clonazépam,N03AE01,Antiépileptique,0.5 mg,comprimé,O
+clonazépam,N03AE01,Antiépileptique,2 mg,comprimé,O
+phénobarbital,N03AA02,Antiépileptique,50 mg,comprimé,O
+phénobarbital,N03AA02,Antiépileptique,100 mg,comprimé,O
+phénobarbital,N03AA02,Antiépileptique,200 mg/ml,injectable,O
+phénytoïne,N03AB02,Antiépileptique,100 mg,comprimé,O
+phénytoïne,N03AB02,Antiépileptique,250 mg/5 ml,injectable,O
+carbamazépine,N03AF01,Antiépileptique,200 mg,comprimé,O
+valproate de sodium,N03AG01,Antiépileptique,200 mg,comprimé,O
+valproate de sodium,N03AG01,Antiépileptique,500 mg,comprimé,O
+lamotrigine,N03AX09,Antiépileptique,25 mg,comprimé,O
+lamotrigine,N03AX09,Antiépileptique,100 mg,comprimé,O
+lévétiracétam,N03AX14,Antiépileptique,500 mg,comprimé,O
+halopéridol,N05AD01,Antipsychotique,5 mg,comprimé,O
+halopéridol,N05AD01,Antipsychotique,5 mg/ml,injectable,O
+chlorpromazine,N05AA01,Antipsychotique,25 mg,comprimé,O
+chlorpromazine,N05AA01,Antipsychotique,100 mg,comprimé,O
+chlorpromazine,N05AA01,Antipsychotique,25 mg/5 ml,injectable,O
+rispéridone,N05AX08,Antipsychotique,2 mg,comprimé,O
+rispéridone,N05AX08,Antipsychotique,4 mg,comprimé,O
+olanzapine,N05AH03,Antipsychotique,5 mg,comprimé,O
+olanzapine,N05AH03,Antipsychotique,10 mg,comprimé,O
+fluphénazine décanoate,N05AB02,Antipsychotique,25 mg/ml,injectable,O
+lithium,N05AN01,Thymorégulateur,250 mg,comprimé,O
+amitriptyline,N06AA09,Antidépresseur,25 mg,comprimé,O
+amitriptyline,N06AA09,Antidépresseur,50 mg,comprimé,O
+clomipramine,N06AA04,Antidépresseur,25 mg,comprimé,O
+fluoxétine,N06AB03,Antidépresseur,20 mg,gélule,O
+sertraline,N06AB06,Antidépresseur,50 mg,comprimé,O
+trihexyphénidyle,N04AA01,Antiparkinsonien,2 mg,comprimé,O
+lévodopa-bensérazide,N04BA02,Antiparkinsonien,100 mg/25 mg,gélule,O
+piracétam,N06BX03,Neurologie,800 mg,comprimé,O
+piracétam,N06BX03,Neurologie,1 g/5 ml,injectable,O
+sumatriptan,N02CC01,Antimigraineux,50 mg,comprimé,O
+propofol,N01AX10,Anesthésique,10 mg/ml,injectable,O
+kétamine,N01AX03,Anesthésique,50 mg/ml,injectable,O
+lidocaïne,N01BB02,Anesthésique local,1%,injectable,O
+lidocaïne,N01BB02,Anesthésique local,2%,injectable,O
+lidocaïne,N01BB02,Anesthésique local,2%,gel,N
+bupivacaïne,N01BB01,Anesthésique local,0.5%,injectable,O
+atropine,A03BA01,Anticholinergique,1 mg/ml,injectable,O
+néostigmine,N07AA01,Anticholinestérasique,0.5 mg/ml,injectable,O
+suxaméthonium,M03AB01,Curare,100 mg,injectable,O
+ocytocine,H01BB02,Obstétrique,10 UI/ml,injectable,O
+misoprostol,G02AD06,Obstétrique,200 µg,comprimé,O
+méthylergométrine,G02AB01,Obstétrique,0.2 mg/ml,injectable,O
+sulfate de magnésium,B05XA05,Pré-éclampsie,50%,injectable,O
+lévonorgestrel,G03AD01,Contraception d'urgence,1.5 mg,comprimé,N
+lévonorgestrel-éthinylestradiol,G03AA07,Contraceptif oral,0.15 mg/0.03 mg,comprimé,O
+médroxyprogestérone,G03AC06,Contraceptif injectable,150 mg/ml,injectable,O
+lévonorgestrel,G03AC03,Contraceptif implant,75 mg (2 tiges),implant,O
+étonogestrel,G03AC08,Contraceptif implant,68 mg,implant,O
+noréthistérone,G03AC01,Hormone,5 mg,comprimé,O
+progestérone,G03DA04,Hormone,200 mg,capsule,O
+clomifène,G03GB02,Infertilité,50 mg,comprimé,O
+lévothyroxine,H03AA01,Thyroïde,50 µg,comprimé,O
+lévothyroxine,H03AA01,Thyroïde,100 µg,comprimé,O
+carbimazole,H03BB01,Antithyroïdien,5 mg,comprimé,O
+propylthiouracile,H03BA02,Antithyroïdien,50 mg,comprimé,O
+acide folique,B03BB01,Vitamine,5 mg,comprimé,N
+acide folique,B03BB01,Vitamine,400 µg,comprimé,N
+sulfate ferreux,B03AA07,Antianémique,200 mg,comprimé,N
+sulfate ferreux-acide folique,B03AD,Antianémique (grossesse),200 mg/0.4 mg,comprimé,N
+fer saccharose,B03AC,Antianémique,100 mg/5 ml,injectable,O
+cyanocobalamine,B03BA01,Vitamine B12,1000 µg,injectable,O
+vitamine A,A11CA01,Vitamine,200000 UI,capsule,N
+vitamine A,A11CA01,Vitamine,100000 UI,capsule,N
+vitamine C,A11GA01,Vitamine,500 mg,comprimé,N
+vitamine D3,A11CC05,Vitamine,200000 UI,injectable,O
+vitamine B1,A11DA01,Vitamine,100 mg,comprimé,N
+vitamine B6,A11HA02,Vitamine,50 mg,comprimé,N
+vitamine B complexe,A11EA,Vitamine,—,comprimé,N
+vitamine K1,B02BA01,Vitamine,10 mg/ml,injectable,O
+calcium,A12AA,Minéral,500 mg,comprimé,N
+gluconate de calcium,A12AA03,Minéral,10%,injectable,O
+multivitamines,A11AA,Vitamine,—,comprimé,N
+acide tranexamique,B02AA02,Antihémorragique,500 mg,comprimé,O
+acide tranexamique,B02AA02,Antihémorragique,500 mg/5 ml,injectable,O
+hydroxycarbamide,L01XX05,Drépanocytose,500 mg,gélule,O
+chlorure de sodium 0.9%,B05BB01,Soluté,500 ml,perfusion,O
+chlorure de sodium 0.9%,B05BB01,Soluté,250 ml,perfusion,O
+glucose 5%,B05BA03,Soluté,500 ml,perfusion,O
+glucose 10%,B05BA03,Soluté,500 ml,perfusion,O
+glucose 30%,B05BA03,Soluté,10 ml,injectable,O
+glucose-chlorure de sodium,B05BB02,Soluté,500 ml,perfusion,O
+Ringer lactate,B05BB01,Soluté,500 ml,perfusion,O
+gélatine fluide modifiée,B05AA06,Remplissage,500 ml,perfusion,O
+mannitol,B05BC01,Soluté,20%,perfusion,O
+bicarbonate de sodium,B05XA02,Soluté,8.4%,injectable,O
+chlorure de potassium,B05XA01,Soluté,10%,injectable,O
+eau pour préparation injectable,V07AB,Solvant,10 ml,ampoule,N
+naloxone,V03AB15,Antidote,0.4 mg/ml,injectable,O
+flumazénil,V03AB25,Antidote,0.5 mg/5 ml,injectable,O
+sérum antitétanique,J06AA02,Sérum,1500 UI,injectable,O
+sérum antivenimeux,J06AA,Sérum,—,injectable,O
+vaccin BCG,J07AN01,Vaccin (PEV),—,injectable,O
+vaccin antipoliomyélitique oral,J07BF,Vaccin (PEV),—,gouttes buvables,O
+vaccin pentavalent DTC-HepB-Hib,J07CA,Vaccin (PEV),—,injectable,O
+vaccin antirougeoleux,J07BD01,Vaccin (PEV),—,injectable,O
+vaccin antiamaril (fièvre jaune),J07BL01,Vaccin (PEV),—,injectable,O
+vaccin antiméningococcique,J07AH,Vaccin,—,injectable,O
+vaccin antipneumococcique conjugué,J07AL,Vaccin (PEV),—,injectable,O
+vaccin antirotavirus,J07BH,Vaccin (PEV),—,suspension buvable,O
+vaccin antirabique,J07BG01,Vaccin,—,injectable,O
+vaccin antitétanique,J07AM01,Vaccin,—,injectable,O
+vaccin anti-HPV,J07BM,Vaccin,—,injectable,O
+povidone iodée,D08AG02,Antiseptique,10%,solution,N
+chlorhexidine,D08AC02,Antiseptique,4%,solution,N
+chlorhexidine,D08AC02,Antiseptique (cordon ombilical),7.1%,gel,N
+alcool à 70°,D08AX,Antiseptique,70°,solution,N
+eau oxygénée,D08AX01,Antiseptique,10 volumes,solution,N
+bétaméthasone,D07AC01,Dermocorticoïde,0.05%,crème,O
+hydrocortisone,D07AA02,Dermocorticoïde,1%,crème,N
+clobétasol,D07AD01,Dermocorticoïde,0.05%,crème,O
+acide salicylique,D01AE12,Kératolytique,5%,pommade,N
+oxyde de zinc,D02AB,Dermatologie,—,pommade,N
+mupirocine,D06AX09,Antibiotique local,2%,pommade,O
+acide fusidique,D06AX01,Antibiotique local,2%,crème,O
+sulfadiazine argentique,D06BA01,Brûlures,1%,crème,O
+tétracycline,S01AA09,Ophtalmologie,1%,pommade ophtalmique,N
+chloramphénicol,S01AA01,Ophtalmologie,0.5%,collyre,N
+ciprofloxacine,S01AE03,Ophtalmologie,0.3%,collyre,O
+gentamicine,S01AA11,Ophtalmologie,0.3%,collyre,O
+timolol,S01ED01,Ophtalmologie (glaucome),0.5%,collyre,O
+pilocarpine,S01EB01,Ophtalmologie (glaucome),2%,collyre,O
+atropine,S01FA01,Ophtalmologie,1%,collyre,O
+dexaméthasone,S01BA01,Ophtalmologie,0.1%,collyre,O
+aciclovir,S01AD03,Ophtalmologie,3%,pommade ophtalmique,O
+xylométazoline,R01AA07,Décongestionnant nasal,0.05%,solution nasale,N
+chlorure de sodium,R01AX10,Lavage nasal,0.9%,solution nasale,N
+ciprofloxacine,S02AA15,ORL,0.3%,gouttes auriculaires,O
+tamsulosine,G04CA02,Urologie,0.4 mg,gélule,O
+finastéride,G04CB01,Urologie,5 mg,comprimé,O
+sildénafil,G04BE03,Urologie,50 mg,comprimé,O
+oxybutynine,G04BD04,Urologie,5 mg,comprimé,O
+tamoxifène,L02BA01,Oncologie,20 mg,comprimé,O
+méthotrexate,L01BA01,Oncologie/immunologie,2.5 mg,comprimé,O
+azathioprine,L04AX01,Immunosuppresseur,50 mg,comprimé,O

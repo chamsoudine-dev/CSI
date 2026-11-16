@@ -1,0 +1,160 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Enquête UNFPA Supplies – CSI Niger 2026</title>
+<style>
+/* Styles isolés sous #u26 : aucun conflit avec le site hôte. data-theme: light (défaut) | dark | auto */
+#u26{--bg:#f4f6f3;--cd:#fff;--tx:#1b2a23;--mu:#64726a;--pr:#0f7a5c;--bd:#dce3de;--ac:#e5f3ed;--wa:#b3261e;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){#u26[data-theme="auto"]{--bg:#111815;--cd:#1a2420;--tx:#e8eeea;--mu:#9aa8a0;--pr:#3fbf97;--bd:#2b3731;--ac:#1f3229;--wa:#f2736b}}
+#u26[data-theme="dark"]{--bg:#111815;--cd:#1a2420;--tx:#e8eeea;--mu:#9aa8a0;--pr:#3fbf97;--bd:#2b3731;--ac:#1f3229;--wa:#f2736b}
+#u26 *{box-sizing:border-box}#u26 header{background:var(--pr);color:#fff;padding:14px 16px}#u26 header h1{margin:0;font-size:17px}#u26 header small{opacity:.85}#u26 .tabs{display:flex;gap:4px;padding:8px 12px 0;background:var(--cd);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:5}#u26 .tabs button{border:0;background:none;color:var(--mu);padding:10px 14px;font:inherit;font-weight:600;border-bottom:3px solid transparent;cursor:pointer}#u26 .tabs button.on{color:var(--pr);border-color:var(--pr)}#u26 main{max-width:900px;margin:0 auto;padding:14px}#u26 .card{background:var(--cd);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px}#u26 .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:6px}#u26 .chips button{flex:none;border:1px solid var(--bd);background:var(--cd);color:var(--tx);border-radius:20px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}#u26 .chips button.on{background:var(--pr);color:#fff;border-color:var(--pr)}#u26 .chips button.off{opacity:.4}#u26 .q{padding:12px 0;border-top:1px solid var(--bd)}#u26 .q:first-of-type{border-top:0}#u26 .qt{font-weight:600;margin-bottom:6px}#u26 .qt b{color:var(--pr);margin-right:4px}#u26 .qt small{display:block;color:var(--mu);font-weight:400}#u26 .c{display:inline-flex;align-items:center;gap:6px;margin:3px 12px 3px 0;cursor:pointer}#u26 input[type=text],#u26 input[type=number],#u26 input[type=date],#u26 input[type=time],#u26 textarea,#u26 select{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}#u26 .mr{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:6px 8px;border-radius:8px}#u26 .mr:nth-child(even){background:var(--ac)}#u26 .mr>span{flex:1 1 200px;font-size:14px}#u26 .mr select{flex:1 1 200px;width:auto}#u26 .btn{background:var(--pr);color:#fff;border:0;border-radius:8px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}#u26 .btn.s{background:var(--ac);color:var(--pr)}#u26 .btn.d{background:none;color:var(--wa);padding:6px 8px}#u26 .row{display:flex;gap:8px;flex-wrap:wrap}#u26 .row>*{flex:1 1 150px}#u26 .bar{height:6px;background:var(--bd);border-radius:4px;overflow:hidden;margin:6px 0}#u26 .bar i{display:block;height:100%;background:var(--pr)}#u26 .nav{display:flex;justify-content:space-between;margin-top:8px}#u26 .ok{color:var(--pr);font-weight:700}#u26 .ko{color:var(--wa);font-weight:700}#u26 .sy{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--bd)}#u26 .note{background:var(--ac);border-radius:8px;padding:8px 10px;color:var(--mu);font-size:13px;margin-bottom:10px}
+</style></head><body style="margin:0;padding-top:env(safe-area-inset-top,0px)">
+<!-- ===== DÉBUT DU BLOC À INTÉGRER (div + script) ===== -->
+<div id="u26" data-theme="auto">
+<header><h1>Enquête UNFPA Supplies – Niger 2026</h1><small>Offre et disponibilité des produits de santé de la reproduction · CSI</small></header>
+<div class="tabs" id="u26-tabs"></div><main id="u26-app"></main></div>
+<script>
+(function(){
+const root=document.getElementById("u26");
+const M=["Préservatifs masculins","Préservatifs féminins","Contraceptifs oraux","Méthodes injectables","Contraception d'urgence","Stérilets (DIU)","Implants","Stérilisation féminine","Stérilisation masculine"];
+const D=["Ampicilline inj.","Azithromycine","Benzathine benzylpénicilline","Bétaméthasone / Dexaméthasone","Gluconate de calcium","Céfixime","Gentamicine inj.","Hydralazine","Sulfate de magnésium","Méthyldopa","Métronidazole inj.","Mifépristone","Misoprostol","Nifédipine","Ocytocine inj.","Chlorure de sodium / Lactate de sodium","Anatoxine tétanique (VAT)"];
+const Y=["Oui","Non"],YN=["Oui","Non","Non concerné"],DV=["Oui (vérifiées)","Oui (non vérifiées)","Pas de directives"];
+const R=["Retard de livraison du fournisseur","Retard de demande du PPS","Indisponibilité sur le marché","Demande faible ou nulle","Personnel non formé","Manque d'équipement","Autre"];
+const S=[
+{t:"A. Identification",q:[
+{i:"enq",t:"Nom de l'enquêteur",k:"t"},{i:"dat",t:"Date de l'enquête",k:"d"},{i:"hd",t:"Heure de début",k:"h"},{i:"hf",t:"Heure de fin",k:"h"},
+{i:"001",t:"Nom de l'établissement (PPS)",k:"t"},{i:"reg",t:"Région",k:"t"},{i:"dis",t:"District sanitaire",k:"t"},{i:"loc",t:"Localité / village",k:"t"},
+{i:"003",t:"Coordonnées GPS (latitude / longitude)",k:"t"},{i:"tel",t:"Téléphone du PPS",k:"t"},
+{i:"004",t:"Zone",k:"s",o:["Urbaine","Rurale"]},
+{i:"005",t:"Distance jusqu'au dépôt qui approvisionne le PPS (km, aller simple)",k:"n"},
+{i:"006",t:"Type de point de prestation",k:"s",o:["Niveau I – CSI, cabinet médical, infirmerie","Niveau II – hôpital de district, clinique","Niveau III – hôpital national/régional, CSME"]},
+{i:"007",t:"Appartenance de la structure",k:"s",o:["État","Privé","ONG","Autre"]},
+{i:"008",t:"L'établissement assure-t-il des services de planification familiale ?",n:"Si NON : sauter les sections 3 et 5 (items 11 à 18 et 23 à 43)",k:"s",o:Y},
+{i:"009",t:"L'établissement assure-t-il des soins de santé maternelle (accouchement) ?",n:"Si NON : sauter la section 4 (items 19 à 22)",k:"s",o:Y},
+{i:"010",t:"Services liés au VIH/sida (CDV, PTME, TARV…) ?",k:"s",o:Y},
+{i:"010b",t:"Dispose d'une sage-femme / maïeuticien d'État ?",k:"s",o:Y},
+{i:"010c",t:"Dispose d'un(e) infirmier(e) diplômé(e) d'État (IDE) ?",k:"s",o:Y},
+{i:"010d",t:"Dispose d'un Agent Technique de Santé (ATS) ?",k:"s",o:Y},
+{i:"010e",t:"Dispose d'un médecin ?",k:"s",o:Y}]},
+{t:"B. Méthodes PF (S3)",f:["008","Oui"],q:[
+{i:"011",t:"Pour chaque méthode : le PPS est-il censé la proposer (directives, lois, protocoles nationaux applicables à son type de prestation) ?",k:"x",r:M,o:YN},
+{i:"012",t:"Si oui à 011 : le PPS propose-t-il effectivement cette méthode à ses clients de manière systématique ?",k:"x",r:M,o:YN},
+{i:"016",t:"Pour chaque méthode : le PPS la propose-t-il de manière systématique dans son processus habituel de prestation ?",k:"x",r:M,o:Y},
+{i:"015",t:"Si le PPS ne propose pas la méthode : raison principale",k:"x",r:M,o:R}]},
+{t:"C. Santé maternelle (S4)",f:["009","Oui"],q:[
+{i:"019",t:"Pour chaque médicament : le PPS est-il censé l'avoir à disposition ?",k:"x",r:D,o:YN},
+{i:"020",t:"Si oui à 019 : le médicament est-il actuellement disponible ?",k:"x",r:D,o:YN},
+{i:"021",t:"Si indisponible : raison principale du manque",k:"x",r:D,o:R},
+{i:"022",t:"Vérification par l'enquêteur (inventaire physique)",k:"x",r:D,o:["Vérifié en stock","N'est PAS en stock"]}]},
+{t:"D. Ruptures de stock (S5)",f:["008","Oui"],q:[
+{i:"028",t:"Stock le jour de l'enquête – vérifier par inventaire physique",k:"x",r:M,o:["En stock","Rupture","Non concerné"]},
+{i:"033",t:"Si rupture aujourd'hui : raison principale",k:"x",r:M,o:R},
+{i:"034",t:"Rupture de stock au cours des 3 derniers mois ?",k:"x",r:M,o:YN},
+{i:"034a",t:"Rupture de stock au cours des 6 derniers mois ?",k:"x",r:M,o:YN},
+{i:"038",t:"Si rupture passée : raison principale",k:"x",r:M,o:R}]},
+{t:"E. Approvisionnement (S6)",q:[
+{i:"044",t:"Qui est le principal responsable de la commande de fournitures médicales ?",k:"s",o:["Médecin","Clinicien","Pharmacien","Infirmier(ère)","Autre"]},
+{i:"045",t:"Méthode utilisée pour déterminer la quantité à réapprovisionner",k:"s",o:["Formule du PPS (calcul de la quantité)","Le dépôt détermine la quantité","Autre méthode"]},
+{i:"046",t:"Le PPS utilise-t-il des formulaires logistiques pour enregistrer et commander ?",k:"s",o:["Oui (vérifié)","Oui (non constaté)","Non, pas de formulaires"]},
+{i:"047",t:"Principal pourvoyeur habituel de médicaments et fournitures",k:"s",o:["Dépôt médical central","Entrepôt provincial / district","Dépôt local sur site","ONG","Donateurs","Sources privées"]},
+{i:"048",t:"Qui assure le transport des produits jusqu'au PPS ?",k:"s",o:["Autorités nationales/centrales","Autorités locales/district","L'établissement lui-même","Autre"]},
+{i:"049",t:"Délai moyen entre commande et réception",k:"s",o:["Moins de 2 semaines","2 semaines à 1 mois","1 à 2 mois","2 à 4 mois","4 à 6 mois","Plus de 6 mois"]},
+{i:"050",t:"Fréquence moyenne de réapprovisionnement",k:"s",o:["Bimensuelle","Mensuelle","Trimestrielle","Semestrielle","Annuelle","Autre"]},
+{i:"051",t:"Sur les 3 derniers mois : quantité totale commandée reçue (contraceptifs) ?",k:"s",o:["Oui, totalité reçue","Non, pas toute la quantité","Non applicable (pas de commande)"]},
+{i:"052",t:"Si non : raison(s)",k:"a"},
+{i:"053",t:"Prestataires formés à :",k:"m",o:["Évaluer le niveau de stock","Faire une demande","Tenir les dossiers (registres, outils de gestion)","Entretien des stocks"]}]},
+{t:"F. Chaîne du froid (S7)",q:[
+{i:"054",t:"Le PPS dispose-t-il de sa propre chaîne du froid ?",k:"s",o:Y},
+{i:"055",t:"Si oui : produits stockés au froid",k:"m",o:["Vaccin (VAT…)","Synthocinone (ocytocine)","Methergin","Autres"]},
+{i:"056",t:"Type de chaîne du froid",k:"s",o:["Réfrigérateur électrique","Réfrigérateur à gaz","Réfrigérateur électrique et gaz","Glacière avec ice box","Autre","Non applicable"]},
+{i:"057",t:"Source d'alimentation",k:"s",o:["Réseau national","Groupe électrogène sur site","Groupe électrogène portable","Gaz/kérosène/paraffine","Énergie solaire","Autre"]},
+{i:"058",t:"Sans chaîne du froid propre : où conserve-t-il les produits ?",k:"s",o:["Frigo d'une autre formation sanitaire","Frigo d'un membre du personnel","Autres","Pas de produits à conserver au frais"]}]},
+{t:"G. Formation (S8)",q:[
+{i:"059",t:"Personnel formé à la dispensation de méthodes contraceptives modernes ?",k:"s",o:Y},{i:"060",t:"Si oui : nombre de personnes formées",k:"n"},
+{i:"061",t:"Personnel formé à la pose et au retrait du DIU ?",k:"s",o:Y},{i:"061b",t:"Nombre formé (DIU)",k:"n"},
+{i:"061c",t:"Personnel formé à la pose et au retrait d'implants ?",k:"s",o:Y},{i:"061d",t:"Nombre formé (implants)",k:"n"},
+{i:"062",t:"Personnel formé aux méthodes permanentes (vasectomie, ligature des trompes) ?",k:"s",o:["Oui","Non","Non applicable (centre de santé)"]},{i:"062b",t:"Nombre formé (méthodes permanentes)",k:"n"},
+{i:"063",t:"Le personnel formé dispense-t-il effectivement des méthodes modernes ?",k:"s",o:["Oui","Non","Non applicable"]},
+{i:"064",t:"Si non : raison",k:"s",o:["Pas de services PF (absence de contraceptifs)","Demande faible ou nulle","Autres"]},
+{i:"065",t:"Dernière participation à une formation en PF",k:"s",o:["2 derniers mois","2 à 6 mois","6 mois à 1 an","Plus d'un an","Jamais"]},
+{i:"066",t:"La formation portait-elle sur la pose/retrait d'implants ?",k:"s",o:YN},{i:"066b",t:"La formation portait-elle sur la pose/retrait du DIU ?",k:"s",o:YN}]},
+{t:"H. Supervision (S9)",q:[
+{i:"067",t:"Dernière visite d'un superviseur (12 derniers mois)",k:"s",o:["Moins d'un mois","1 à 3 mois","3 à 6 mois","6 mois à 1 an","Plus d'un an","Pas de supervision"]},
+{i:"068",t:"Fréquence des visites du superviseur",k:"s",o:["Hebdomadaire","Mensuelle","Trimestrielle","Semestrielle","Annuelle","Jamais"]},
+{i:"069",t:"Points abordés par la supervision",k:"m",o:["Pratiques cliniques","Rupture de stock / péremption","Disponibilité et formation du personnel","Qualité des données et rapports","Utilisation d'une directive/outil en SR","Autre","Non applicable"]}]},
+{t:"I. Directives & TIC (S10-11)",q:[
+{i:"070",t:"Directives en matière de planification familiale ?",k:"s",o:DV},{i:"071",t:"Listes de contrôle / outils de travail PF ?",k:"s",o:DV},
+{i:"072",t:"Directives en matière de soins prénatals ?",k:"s",o:DV},{i:"073",t:"Listes de contrôle / outils soins prénatals ?",k:"s",o:DV},
+{i:"074",t:"Directive en matière de gestion des déchets ?",k:"s",o:DV},
+{i:"075",t:"Le PPS utilise-t-il des TIC ?",k:"s",o:["Oui (vérifié)","Oui (non vérifié)","Non, TIC non utilisées"]},
+{i:"076",t:"Types de TIC utilisés",k:"m",o:["Ordinateurs","Téléphones de base","Smartphones","Tablettes","Internet LAN","Internet Wifi","Autre"]},
+{i:"077",t:"Provenance des TIC",k:"m",o:["Fournies par le propriétaire du PPS","Fournies par le gouvernement","Appareils des employés","Don","Autre"]},
+{i:"078",t:"À quelles fins ?",k:"m",o:["Enregistrement des patients","Tenue des dossiers","Dossier médical électronique","Remboursement assurance maladie","Transferts d'argent mobile","Communication normale","Formation des agents","Sensibilisation","Gestion des stocks","Consultations à distance","Autre"]}]},
+{t:"J. Déchets & facturation (S12-13)",q:[
+{i:"079",t:"Comment le PPS gère-t-il ses déchets médicaux ?",k:"s",o:["Brûlés sur site","Enterrés (décharges spéciales)","Recours à des incinérateurs","Collecte centrale spécifique","Jetés avec les ordures ménagères"]},
+{i:"079b",t:"Le PPS dispose-t-il d'un incinérateur ?",k:"s",o:["Oui, le sien","Oui, d'une autre structure","Non"]},
+{i:"080",t:"Facture-t-il les consultations aux patients ?",k:"s",o:Y},
+{i:"081",t:"Services gratuits",k:"m",o:["Planification familiale","Soins prénatals","Accouchement","Soins postnatals","Soins néonatals","Enfants < 5 ans malades","VIH","Autre","Non applicable"]},
+{i:"082",t:"Facture-t-il les médicaments aux patients ?",k:"s",o:Y},
+{i:"083",t:"Produits gratuits",k:"m",o:["Produits PF","Médicaments santé maternelle","Médicaments santé infantile","Autre","Non applicable"]},
+{i:"084",t:"Facture-t-il les services spécialisés ?",k:"s",o:["Oui","Non","Non applicable"]},
+{i:"085",t:"Services spécialisés gratuits",k:"m",o:["Planification familiale","Prénatals","Accouchement","Postnatals","Néonatals","VIH","Césarienne","Enfants < 5 ans","Autre"]}]},
+{t:"K. Observations",q:[
+{i:"fn",t:"Fonctions des répondants (ex. responsable de la FS, pharmacien, chef de service maternité…)",k:"a"},
+{i:"obs",t:"Observations / commentaires de l'enquêteur",k:"a"}]}];
+const $=s=>root.querySelector(s),esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+let DB=[];try{DB=JSON.parse(localStorage.getItem('unfpa26')||'[]')}catch(e){}
+let tab='plan',cur=null,si=0;
+const save=()=>{try{localStorage.setItem('unfpa26',JSON.stringify(DB))}catch(e){}};
+const vis=(s,r)=>!s.f||r.a[s.f[0]]==s.f[1];
+const keys=q=>q.k=='x'?q.r.map((_,j)=>q.i+'_'+j):[q.i];
+const dn=v=>Array.isArray(v)?v.length>0:v!==undefined&&v!=='';
+function prog(s,r){let t=0,d=0;s.q.forEach(q=>keys(q).forEach(k=>{t++;if(dn(r.a[k]))d++}));return[d,t]}
+function total(r){let d=0,t=0;S.forEach(s=>{if(vis(s,r)){const p=prog(s,r);d+=p[0];t+=p[1]}});return t?Math.round(100*d/t):0}
+function fld(q,a){const k=q.i;let h=`<div class="q"><div class="qt"><b>${k}</b>${q.t}${q.n?`<small>${q.n}</small>`:''}</div>`;
+const op=(k,o,ty,v)=>o.map(x=>`<label class="c"><input type="${ty}" name="${k}" data-k="${k}" data-t="${ty}" value="${esc(x)}" ${ty=='radio'?(v===x?'checked':''):((v||[]).includes(x)?'checked':'')}>${x}</label>`).join('');
+const T={t:'text',n:'number',d:'date',h:'time'};
+if(T[q.k])h+=`<input type="${T[q.k]}" data-k="${k}" value="${esc(a[k]||'')}">`;
+else if(q.k=='a')h+=`<textarea rows="3" data-k="${k}">${esc(a[k]||'')}</textarea>`;
+else if(q.k=='s')h+=op(k,q.o,'radio',a[k]);
+else if(q.k=='m')h+=op(k,q.o,'checkbox',a[k]);
+else h+=q.r.map((r,j)=>{const kk=k+'_'+j;return`<div class="mr"><span>${r}</span>`+(q.o.length<=3?op(kk,q.o,'radio',a[kk]):`<select data-k="${kk}"><option value="">— choisir —</option>${q.o.map(x=>`<option ${a[kk]===x?'selected':''}>${x}</option>`).join('')}</select>`)+'</div>'}).join('');
+return h+'</div>'}
+function tabs(){$('#u26-tabs').innerHTML=[['plan','📅 Planning'],['form','📝 Questionnaire'],['syn','📊 Synthèse / Export']].map(x=>`<button class="${tab==x[0]?'on':''}" data-tab="${x[0]}">${x[1]}</button>`).join('')}
+function plan(){$('#u26-app').innerHTML=`<div class="card"><b>Planifier une enquête dans un CSI</b><div class="note">Ajoutez les CSI à visiter pendant la campagne. Chaque ligne ouvre son propre questionnaire, enregistré automatiquement sur cet appareil.</div>
+<div class="row"><input id="u26pc" placeholder="Code PPS"><input id="u26pn" placeholder="Nom du CSI"><input id="u26pd" placeholder="District sanitaire"><input id="u26pe" placeholder="Enquêteur"><input id="u26pt0" type="date"></div>
+<p><button class="btn" data-act="add">+ Ajouter au planning</button></p></div>
+${DB.length?DB.map(r=>`<div class="card"><b>${esc(r.n||'CSI sans nom')}</b> <small style="color:var(--mu)">Code ${esc(r.c||'–')} · ${esc(r.d||'')}</small><br><small style="color:var(--mu)">📅 ${esc(r.dt||'date à fixer')} · 👤 ${esc(r.e||'à affecter')}</small>
+<div class="bar"><i style="width:${total(r)}%"></i></div><small>${total(r)}% rempli</small><div><button class="btn s" data-act="open" data-id="${r.id}">Ouvrir le questionnaire</button><button class="btn d" data-act="del" data-id="${r.id}">Supprimer</button></div></div>`).join(''):'<p style="color:var(--mu)">Aucune enquête planifiée pour le moment.</p>'}`}
+function form(){if(!cur){$('#u26-app').innerHTML='<div class="card">Choisissez d\'abord un CSI dans l\'onglet Planning.</div>';return}
+const s=S[si];$('#u26-app').innerHTML=`<div class="card"><b>${esc(cur.n)}</b> · <span id="u26pt">${total(cur)}% rempli</span><div class="bar"><i id="u26pb" style="width:${total(cur)}%"></i></div></div><div class="chips" id="u26ch"></div>
+${vis(s,cur)?`<div class="card"><h3 style="margin:0 0 6px">${s.t}</h3>${s.q.map(q=>fld(q,cur.a)).join('')}</div>`:'<div class="card note">Section sautée : réponse « Non » à l\'item de filtrage (008 ou 009).</div>'}
+<div class="nav"><button class="btn s" data-act="prev">← Précédent</button><button class="btn" data-act="next">Suivant →</button></div>`;chips()}
+function hdr(){const t=$('#u26pt');if(t){t.textContent=total(cur)+'% rempli';$('#u26pb').style.width=total(cur)+'%'}}
+function chips(){const c=$('#u26ch');if(!c)return;c.innerHTML=S.map((s,i)=>{const p=prog(s,cur);return`<button class="${i==si?'on':''} ${vis(s,cur)?'':'off'}" data-sec="${i}">${s.t}${vis(s,cur)&&p[1]?` · ${p[0]}/${p[1]}`:''}</button>`}).join('')}
+function syn(){let h='';if(cur){const a=cur.a,n=(k,c,v)=>[...Array(c)].filter((_,j)=>a[k+'_'+j]==v).length;
+const p=n('011',9,'Oui'),s=n('016',9,'Oui'),st=n('028',9,'En stock'),ru=n('028',9,'Rupture'),r3=n('034',9,'Oui'),r6=n('034a',9,'Oui'),mv=n('020',17,'Oui'),okm=a['020_8']=='Oui'&&a['020_14']=='Oui'&&mv>=7;
+const b=v=>v?'<span class="ok">Oui</span>':'<span class="ko">Non</span>';
+const L=[["Méthodes censées être proposées (011) / ≥ 3 / ≥ 5",`${p}/9 — ${b(p>=3)} / ${b(p>=5)}`],["Méthodes proposées systématiquement (016) / ≥ 3 / ≥ 5",`${s}/9 — ${b(s>=3)} / ${b(s>=5)}`],["Méthodes en stock le jour de l'enquête (028) / ≥ 3 / ≥ 5",`${st}/9 — ${b(st>=3)} / ${b(st>=5)}`],["Méthodes en rupture aujourd'hui",`<span class="${ru?'ko':'ok'}">${ru}</span>`],["Au moins une rupture sur 3 mois / 6 mois",`${b(r3>0)} / ${b(r6>0)}`],["Médicaments maternels disponibles (020)",`${mv}/17`],["≥ 7 médicaments vitaux dont sulfate de magnésium + ocytocine",b(okm)]];
+h=`<div class="card"><b>Synthèse – ${esc(cur.n)}</b> (${total(cur)}% rempli)${L.map(x=>`<div class="sy"><span>${x[0]}</span><span>${x[1]}</span></div>`).join('')}</div>`}
+const all=[];S.forEach(s=>s.q.forEach(q=>keys(q).forEach(k=>all.push(k))));
+const csv=['code;csi;district;date;enquêteur;complété_%;'+all.join(';')].concat(DB.map(r=>[r.c,r.n,r.d,r.dt,r.e,total(r)].concat(all.map(k=>{const v=r.a[k];return Array.isArray(v)?v.join(' | '):(v??'')})).map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(';'))).join('\n');
+$('#u26-app').innerHTML=h+`<div class="card"><b>Export CSV (toutes les enquêtes)</b><div class="note">Copiez puis collez dans Excel (séparateur « ; »). Les données sont stockées sur cet appareil : exportez régulièrement.</div><textarea id="u26csv" rows="8" readonly>${esc(csv)}</textarea><p><button class="btn" data-act="copy">Copier le CSV</button></p></div><div class="card"><b>Sauvegarde / restauration (JSON)</b><div class="note">Pour transférer les enquêtes d'un appareil à un autre ou les récupérer après effacement du navigateur.</div><textarea id="u26js" rows="4">${esc(JSON.stringify(DB))}</textarea><p><button class="btn s" data-act="cj">Copier la sauvegarde</button> <button class="btn s" data-act="ij">Restaurer depuis ce texte</button></p></div>`}
+function go(t){tab=t;tabs();({plan,form,syn})[t]()}
+root.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;const d=t.dataset;
+if(d.tab)return go(d.tab);
+if(d.sec!==undefined){si=+d.sec;return form()}
+if(d.act=='add'){const g=i=>$('#u26'+(i=='pt'?'pt0':i)).value.trim();if(!g('pn')&&!g('pc'))return alert('Saisissez au moins le nom ou le code du CSI');DB.push({id:Date.now(),c:g('pc'),n:g('pn'),d:g('pd'),e:g('pe'),dt:g('pt'),a:{"001":g('pn'),dis:g('pd'),enq:g('pe'),dat:g('pt')}});save();return plan()}
+if(d.act=='open'){cur=DB.find(r=>r.id==d.id);si=0;return go('form')}
+if(d.act=='del'){if(confirm('Supprimer cette enquête ?')){DB=DB.filter(r=>r.id!=d.id);if(cur&&cur.id==+d.id)cur=null;save();plan()}return}
+if(d.act=='prev'){si=Math.max(0,si-1);form();root.scrollIntoView()}
+if(d.act=='next'){si=Math.min(S.length-1,si+1);form();root.scrollIntoView()}
+if(d.act=='cj'){const x=$('#u26js');x.select();try{navigator.clipboard.writeText(x.value)}catch(_){document.execCommand('copy')}t.textContent='Copié ✓'}
+if(d.act=='ij'){try{const j=JSON.parse($('#u26js').value);if(Array.isArray(j)&&confirm('Remplacer les données actuelles ?')){DB=j;cur=null;save();go('plan')}}catch(_){alert('Texte JSON invalide')}}
+if(d.act=='copy'){const x=$('#u26csv');x.select();try{navigator.clipboard.writeText(x.value)}catch(_){document.execCommand('copy')}t.textContent='Copié ✓'}});
+function upd(e){const el=e.target,k=el.dataset.k;if(!k||!cur)return;
+if(el.dataset.t=='checkbox')cur.a[k]=[...root.querySelectorAll(`input[data-k="${k}"]:checked`)].map(x=>x.value);
+else if(el.dataset.t=='radio'){if(!el.checked)return;cur.a[k]=el.value}else cur.a[k]=el.value;
+if(k=='001')cur.n=el.value;save();chips();hdr()}
+root.addEventListener('input',upd);root.addEventListener('change',upd);
+go('plan');
+})();
+</script>
+<!-- ===== FIN DU BLOC ===== --></body></html>

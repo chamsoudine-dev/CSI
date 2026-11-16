@@ -74,7 +74,7 @@ router.get('/csi/:id', validateIdParam('id'), wrap(async (req, res) => {
 }));
 
 // ─── POST /api/csi ── Admin ou superviseur ────────────────────────────────────
-router.post('/csi', auth(['admin', 'superviseur']), validate(schemas.csiSchema), wrap(async (req, res) => {
+router.post('/csi', auth(['admin', 'superviseur', 'superviseur_national']), validate(schemas.csiSchema), wrap(async (req, res) => {
   const { nom, region_id, commune, type, latitude, longitude, services } = req.body;
 
   // Superviseur : vérifier qu'il agit dans sa région

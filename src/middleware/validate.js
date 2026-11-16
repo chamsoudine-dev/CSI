@@ -18,31 +18,52 @@ function validate(schema) {
 // ─── Schémas de validation ─────────────────────────────────────────────────
 
 const loginSchema = Joi.object({
-  email: Joi.string().email().required().messages({
+  email: Joi.string().email().trim().lowercase().required().messages({
     'string.email': 'Format email invalide',
     'any.required': 'Email requis'
   }),
-  mot_de_passe: Joi.string().min(6).required().messages({
-    'string.min': 'Mot de passe trop court (min 6 caractères)',
+  mot_de_passe: Joi.string().min(8).required().messages({
+    'string.min': 'Mot de passe requis',
     'any.required': 'Mot de passe requis'
   })
 });
 
+const verificationCodeFields = {
+  challenge_id: Joi.string().guid({ version: ['uuidv4'] }).required(),
+  code: Joi.string().pattern(/^\d{6}$/).required().messages({
+    'string.pattern.base': 'Le code doit contenir 6 chiffres'
+  })
+};
+const verificationCodeSchema = Joi.object(verificationCodeFields);
+
+const demandeChangementMotDePasseSchema = Joi.object({
+  ancien_mot_de_passe: Joi.string().required()
+});
+
 const changementMotDePasseSchema = Joi.object({
-  ancien_mot_de_passe: Joi.string().required().messages({
-    'any.required': 'Ancien mot de passe requis'
-  }),
+  ...verificationCodeFields,
   nouveau_mot_de_passe: Joi.string().min(8).required().messages({
     'string.min': 'Le nouveau mot de passe doit comporter au moins 8 caractères',
     'any.required': 'Nouveau mot de passe requis'
   })
 });
 
+const demandeReinitialisationSchema = Joi.object({
+  email: Joi.string().email().trim().lowercase().required()
+});
+
+const profilSchema = Joi.object({
+  nom: Joi.string().trim().min(2).max(100).optional(),
+  telephone: Joi.string().trim().max(40).allow('', null).optional(),
+  whatsapp: Joi.string().trim().max(40).allow('', null).optional(),
+  poste: Joi.string().trim().max(100).allow('', null).optional()
+}).min(1);
+
 const utilisateurSchema = Joi.object({
   email: Joi.string().email().required(),
   nom: Joi.string().min(2).max(100).required(),
   mot_de_passe: Joi.string().min(8).optional(),
-  role: Joi.string().valid('agent', 'superviseur', 'admin').required(),
+  role: Joi.string().valid('agent', 'superviseur', 'superviseur_national', 'admin').required(),
   csi_id: Joi.number().integer().positive().allow(null).optional(),
   region_id: Joi.number().integer().positive().allow(null).optional(),
   actif: Joi.boolean().optional()
@@ -52,7 +73,7 @@ const utilisateurUpdateSchema = Joi.object({
   email: Joi.string().email().optional(),
   nom: Joi.string().min(2).max(100).optional(),
   mot_de_passe: Joi.string().min(8).allow('', null).optional(),
-  role: Joi.string().valid('agent', 'superviseur', 'admin').optional(),
+  role: Joi.string().valid('agent', 'superviseur', 'superviseur_national', 'admin').optional(),
   csi_id: Joi.number().integer().positive().allow(null).optional(),
   region_id: Joi.number().integer().positive().allow(null).optional(),
   actif: Joi.boolean().optional()
@@ -177,7 +198,11 @@ module.exports = {
   validate,
   schemas: {
     loginSchema,
+    verificationCodeSchema,
+    demandeChangementMotDePasseSchema,
     changementMotDePasseSchema,
+    demandeReinitialisationSchema,
+    profilSchema,
     utilisateurSchema,
     utilisateurUpdateSchema,
     csiSchema,

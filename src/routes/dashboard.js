@@ -11,6 +11,38 @@ const wrap = f => (req, res) => f(req, res).catch(e => {
 
 const moisDate = m => /^\d{4}-\d{2}$/.test(m) ? m + '-01' : null;
 
+// ─── Vue HTMX : Tableau de bord ──────────────────────────────────────────────
+router.get('/view', auth('agent', 'admin'), wrap(async (req, res) => {
+  const csiId = req.user.csi_id || 1;
+  const m = new Date().toISOString().slice(0, 7) + '-01';
+
+  const [stats, info] = await Promise.all([
+    pool.query(`SELECT COUNT(*)::int AS total FROM patients WHERE csi_inscription_id = $1`, [csiId]),
+    pool.query(`SELECT nom FROM csi WHERE id = $1`, [csiId])
+  ]);
+
+  const html = `
+    <div class="dashboard-grid">
+      <div class="card stat-card">
+        <h4>CSI : ${info.rows[0]?.nom || 'National'}</h4>
+        <p>Total Patients enregistrés</p>
+        <div class="stat-value">${stats.rows[0].total}</div>
+      </div>
+      <div class="card actions-card">
+        <h4>Actions rapides</h4>
+        <button class="btn btn-primary" hx-get="/api/patients/view" hx-target="#patients">📋 Voir les patients</button>
+        <button class="btn btn-secondary" hx-get="/api/catalogue/view" hx-target="#catalogue">💊 Consulter le catalogue</button>
+      </div>
+    </div>
+    <style>
+      .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px; }
+      .stat-card { background: #f0f7ff; border-left: 5px solid #0056b3; }
+      .stat-value { font-size: 2.5rem; font-weight: 800; color: #0056b3; }
+    </style>
+  `;
+  res.send(html);
+}));
+
 // ─── GET /api/dashboard/agent ── Tableau de bord spécifique Agent ─────────────
 router.get('/agent', auth('agent', 'admin'), wrap(async (req, res) => {
   const csiId = req.user.role === 'agent' ? req.user.csi_id : (parseInt(req.query.csi_id, 10) || req.user.csi_id);
@@ -68,7 +100,7 @@ router.get('/agent', auth('agent', 'admin'), wrap(async (req, res) => {
 }));
 
 // ─── GET /api/dashboard/superviseur ── Tableau de bord Superviseur Régional ────
-router.get('/superviseur', auth('superviseur', 'admin'), wrap(async (req, res) => {
+router.get('/superviseur', auth('superviseur', 'superviseur_national', 'admin'), wrap(async (req, res) => {
   const regionId = req.user.role === 'superviseur' ? req.user.region_id : (parseInt(req.query.region_id, 10) || req.user.region_id);
   const m = moisDate(req.query.mois) || new Date().toISOString().slice(0, 7) + '-01';
 

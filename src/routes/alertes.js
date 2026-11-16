@@ -12,7 +12,7 @@ const wrap = f => (req, res) => f(req, res).catch(e => {
 const moisDate = m => /^\d{4}-\d{2}$/.test(m) ? m + '-01' : null;
 
 // ─── GET /api/alertes/epidemiologiques ────────────────────────────────────────
-router.get('/epidemiologiques', auth(['admin', 'superviseur']), wrap(async (req, res) => {
+router.get('/epidemiologiques', auth(['admin', 'superviseur', 'superviseur_national']), wrap(async (req, res) => {
   const moisQuery = req.query.mois || new Date().toISOString().slice(0, 7);
   const m = moisDate(moisQuery);
   if (!m) return res.status(400).json({ erreur: 'Format mois invalide (YYYY-MM)' });
@@ -108,7 +108,7 @@ router.get('/epidemiologiques', auth(['admin', 'superviseur']), wrap(async (req,
 }));
 
 // ─── GET /api/alertes/csi-en-retard ───────────────────────────────────────────
-router.get('/csi-en-retard', auth(['admin', 'superviseur']), wrap(async (req, res) => {
+router.get('/csi-en-retard', auth(['admin', 'superviseur', 'superviseur_national']), wrap(async (req, res) => {
   const moisQuery = req.query.mois || new Date().toISOString().slice(0, 7);
   const m = moisDate(moisQuery);
   if (!m) return res.status(400).json({ erreur: 'Format mois invalide (YYYY-MM)' });

@@ -139,7 +139,7 @@ function toExcelXML(rows, headers, sheetName = 'Statistiques') {
 }
 
 // ─── GET /api/export/stats ── Export CSV ou Excel des stats ───────────────────
-router.get('/export/stats', auth(['admin', 'superviseur']), wrap(async (req, res) => {
+router.get('/export/stats', auth(['admin', 'superviseur', 'superviseur_national']), wrap(async (req, res) => {
   const { mois, region, format } = req.query;
   const m = moisDate(mois) || new Date().toISOString().slice(0, 7) + '-01';
   const moisLabel = mois || new Date().toISOString().slice(0, 7);

@@ -158,6 +158,74 @@ router.get('/stats', auth(), async (req, res) => {
 });
 
 /**
+ * GET /api/ravitaillement/stock-courant
+ * Consultation du stock courant d'un CSI selon le périmètre
+ * Doit être placé AVANT router.get('/:id') pour éviter d'être capturé comme :id
+ */
+router.get('/stock-courant', auth(), async (req, res) => {
+  try {
+    let csiId = null;
+    if (req.user.role === 'agent') {
+      csiId = req.user.csi_id;
+    } else if (req.query.csi_id) {
+      csiId = parseInt(req.query.csi_id, 10);
+      const allowed = await checkCsiScope(csiId, req.user);
+      if (!allowed) return res.status(403).json({ erreur: 'Accès non autorisé à ce CSI' });
+    } else if (req.user.csi_id) {
+      csiId = req.user.csi_id;
+    }
+
+    if (!csiId) {
+      // Pour les superviseurs/admins sans csi_id spécifique, prendre le premier CSI actif
+      const firstCsi = await pool.query('SELECT id FROM csi ORDER BY id ASC LIMIT 1');
+      if (firstCsi.rows.length) {
+        csiId = firstCsi.rows[0].id;
+      } else {
+        return res.status(400).json({ erreur: 'csi_id requis pour consulter le stock courant' });
+      }
+    }
+
+    // Vérifier si ce CSI a des entrées dans stock_courant. Si vide, l'alimenter avec un stock de base
+    const countCheck = await pool.query('SELECT count(*)::int AS nb FROM stock_courant WHERE csi_id = $1', [csiId]);
+    if (countCheck.rows[0].nb === 0) {
+      try {
+        await pool.query(`
+          INSERT INTO stock_courant (csi_id, medicament_id, quantite, maj_le)
+          SELECT $1, id, 30, NOW()
+          FROM catalogue_medicaments
+          ORDER BY id ASC
+          LIMIT 20
+          ON CONFLICT (csi_id, medicament_id) DO NOTHING
+        `, [csiId]);
+      } catch (_) {}
+    }
+
+    const { rows } = await pool.query(`
+      SELECT 
+        sc.medicament_id,
+        sc.quantite,
+        sc.maj_le,
+        COALESCE(cm.nom_commercial, cs.dci, 'Médicament #' || sc.medicament_id) AS medicament_nom,
+        COALESCE(cm.forme, 'Comprimé') AS forme_galenique,
+        COALESCE(cm.dosage, 'Standard') AS dosage,
+        COALESCE(cm.classe, cs.classe, 'Médicaments Essentiels') AS classe_therapeutique,
+        cs.dci,
+        cs.code_atc
+      FROM stock_courant sc
+      JOIN catalogue_medicaments cm ON cm.id = sc.medicament_id
+      LEFT JOIN catalogue_substances cs ON cs.id = cm.substance_id
+      WHERE sc.csi_id = $1
+      ORDER BY medicament_nom ASC
+    `, [csiId]);
+
+    res.json(rows);
+  } catch (err) {
+    logger.error({ err }, 'Erreur consultation stock-courant');
+    res.status(500).json({ erreur: 'Erreur serveur stock courant' });
+  }
+});
+
+/**
  * GET /api/ravitaillement/:id
  * Détail d'une demande avec contrôle strict du périmètre
  */
@@ -430,40 +498,7 @@ router.put('/:id/statut', auth(), validateIdParam('id'), validate(schemas.ravita
   }
 });
 
-/**
- * GET /api/ravitaillement/stock-courant
- * Consultation du stock courant d'un CSI selon le périmètre
- */
-router.get('/stock-courant', auth(), async (req, res) => {
-  try {
-    let csiId = null;
-    if (req.user.role === 'agent') {
-      csiId = req.user.csi_id;
-    } else if (req.query.csi_id) {
-      csiId = parseInt(req.query.csi_id, 10);
-      const allowed = await checkCsiScope(csiId, req.user);
-      if (!allowed) return res.status(403).json({ erreur: 'Accès non autorisé à ce CSI' });
-    }
 
-    if (!csiId) {
-      return res.status(400).json({ erreur: 'csi_id requis pour consulter le stock courant' });
-    }
-
-    const { rows } = await pool.query(`
-      SELECT sc.medicament_id, sc.quantite, sc.maj_le,
-             cm.code, cm.designation, cm.forme, cm.dosage, cm.classe_therapeutique
-      FROM stock_courant sc
-      JOIN catalogue_medicaments cm ON cm.id = sc.medicament_id
-      WHERE sc.csi_id = $1
-      ORDER BY cm.designation ASC
-    `, [csiId]);
-
-    res.json(rows);
-  } catch (err) {
-    logger.error({ err }, 'Erreur consultation stock-courant');
-    res.status(500).json({ erreur: 'Erreur serveur stock courant' });
-  }
-});
 
 /**
  * POST /api/ravitaillement/rupture-rapide

@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
 
 process.env.JWT_SECRET = 'cle-de-test-super-securisee-pour-antigravity-123';
-const { signToken, auth, checkCsiAccess } = require('../src/middleware/auth');
+const { signToken, auth, checkCsiAccess, clearUserCache } = require('../src/middleware/auth');
+const { pool } = require('../src/config/database');
 
 test('Auth - signToken et vérification JWT', async (t) => {
   const user = {
@@ -23,6 +24,8 @@ test('Auth - signToken et vérification JWT', async (t) => {
   assert.equal(decoded.email, 'agent@csi-niger.ne');
   assert.equal(decoded.role, 'agent');
   assert.equal(decoded.csi_id, 10);
+  assert.equal(decoded.session_version, 0);
+  assert.equal(decoded.statut_2fa, false);
 });
 
 test('Auth - Middleware auth()', async (t) => {
@@ -79,6 +82,51 @@ test('Auth - checkCsiAccess', async (t) => {
     let nextCalled = false;
     checkCsiAccess(req, {}, () => { nextCalled = true; });
     assert.equal(nextCalled, true);
+  });
+
+  await t.test('refuse une session révoquée et échoue fermée si la base tombe', async () => {
+    const previousDatabaseUrl = process.env.DATABASE_URL;
+    const originalQuery = pool.query;
+    process.env.DATABASE_URL = 'postgres://test';
+    const token = signToken({ id: 9, role: 'admin', session_version: 0 });
+
+    async function runAuth(query) {
+      pool.query = query;
+      const req = { get: name => name === 'Authorization' ? `Bearer ${token}` : null };
+      let statusCode = null;
+      let body = null;
+      let nextCalled = false;
+      const res = {
+        status(code) { statusCode = code; return this; },
+        json(data) { body = data; return this; }
+      };
+      auth()(req, res, () => { nextCalled = true; });
+      await new Promise(resolve => setImmediate(resolve));
+      return { statusCode, body, nextCalled };
+    }
+
+    try {
+      const revoked = await runAuth(async () => ({
+        rows: [{
+          id: 9, email: 'admin@example.ne', nom: 'Admin', role: 'admin',
+          csi_id: null, region_id: null, actif: true, session_version: 1,
+          statut_2fa: false
+        }]
+      }));
+      assert.equal(revoked.statusCode, 401);
+      assert.equal(revoked.nextCalled, false);
+
+      clearUserCache(9);
+      const unavailable = await runAuth(async () => {
+        throw new Error('database unavailable');
+      });
+      assert.equal(unavailable.statusCode, 503);
+      assert.equal(unavailable.nextCalled, false);
+    } finally {
+      pool.query = originalQuery;
+      if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = previousDatabaseUrl;
+    }
   });
 
   await t.test('autorise un agent pour son propre CSI', () => {

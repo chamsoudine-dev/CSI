@@ -39,8 +39,13 @@ if (trustProxyEnv !== undefined && trustProxyEnv !== '') {
   app.set('trust proxy', 1);
 }
 
+// ─── Mode Développement Total ────────────────────────────────────────────────
+if (process.env.MODE_DEV === 'true') {
+  logger.warn('⚠️ MODE_DEV ACTIF : Sécurité désactivée pour le développement local.');
+}
+
 // ─── Sécurité HTTP ────────────────────────────────────────────────────────────
-app.use(helmet({
+app.use(helmet(process.env.MODE_DEV === 'true' ? { contentSecurityPolicy: false } : {
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -58,7 +63,7 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   : [];
 
 app.use(cors({
-  origin: allowedOrigins.length ? allowedOrigins : true,
+  origin: process.env.MODE_DEV === 'true' ? '*' : (allowedOrigins.length ? allowedOrigins : true),
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-token']
 }));
@@ -66,8 +71,16 @@ app.use(cors({
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 15,                   // 15 tentatives max par IP
+  max: 10,                   // 10 tentatives max par IP
   message: { erreur: 'Trop de tentatives de connexion. Réessayez dans 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const verificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { erreur: 'Trop de demandes de code. Réessayez dans 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false
 });
@@ -82,7 +95,23 @@ const apiLimiter = rateLimit({
 app.use(express.json({ limit: '2mb' }));
 
 // ─── Fichiers statiques ───────────────────────────────────────────────────────
-app.use(express.static(path.join(__dirname, 'public')));
+app.use((req, res, next) => {
+  if (req.path === '/' || req.path === '/index.html') {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+  }
+  next();
+});
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+    }
+  }
+}));
 
 // ─── Logger des requêtes ──────────────────────────────────────────────────────
 app.use((req, res, next) => {
@@ -101,9 +130,17 @@ app.use((req, res, next) => {
   next();
 });
 
+// ─── Routes HTMX (fragments HTML) ────────────────────────────────────────────
+app.get('/api/test-htmx', (req, res) => {
+  res.send('<h2>✅ HTMX fonctionne !</h2><p>Le fragment a été chargé sans recharger la page.</p>');
+});
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api', apiLimiter);
 app.use('/api/login', loginLimiter);
+app.use('/api/mot-de-passe-oublie', verificationLimiter);
+app.use('/api/me/mot-de-passe', verificationLimiter);
+app.use('/api/me/2fa', verificationLimiter);
 
 const authRoutes          = require('./src/routes/auth');
 const csiRoutes           = require('./src/routes/csi');
@@ -115,6 +152,7 @@ const ravitaillementRoutes = require('./src/routes/ravitaillement');
 const materniteRoutes     = require('./src/routes/maternite');
 const patientRoutes       = require('./src/routes/patients');
 const unfpaRoutes         = require('./src/routes/unfpa');
+const missionRoutes       = require('./src/routes/missions');
 const referentielsRoutes  = require('./src/routes/referentiels');
 const adminRoutes         = require('./src/routes/admin');
 const alertesRoutes       = require('./src/routes/alertes');
@@ -130,6 +168,7 @@ app.use('/api/ravitaillement', ravitaillementRoutes);
 app.use('/api/maternite', materniteRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/unfpa', unfpaRoutes);
+app.use('/api/missions', missionRoutes);
 app.use('/api/referentiels', referentielsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/alertes', alertesRoutes);
@@ -137,6 +176,9 @@ app.use('/api/dashboard', dashboardRoutes);
 
 // ─── Fallback SPA ─────────────────────────────────────────────────────────────
 app.get('*', (req, res) => {
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 

@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Entretien de sortie PF – Niger 2026</title>
+<style>
+:root{--bg:#f1f5f7;--c:#fff;--ink:#12212b;--mut:#587080;--ac:#0b6e80;--on:#fff;--ln:#c9d5dc;--sel:#d4eff4;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e171c;--c:#17242b;--ink:#e9eff2;--mut:#9db0bb;--ac:#4cc3d9;--on:#06222a;--ln:#2c3d46;--sel:#15414b}}
+:root[data-theme="dark"]{--bg:#0e171c;--c:#17242b;--ink:#e9eff2;--mut:#9db0bb;--ac:#4cc3d9;--on:#06222a;--ln:#2c3d46;--sel:#15414b}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:640px;margin:0 auto;padding:12px 12px 90px}
+h1{font-size:1.3rem;margin:8px 0 2px}h2{font-size:1.05rem;margin:22px 0 8px;padding:8px 10px;background:var(--ac);color:var(--on);border-radius:6px}
+.sub{color:var(--mut);font-size:.9rem;margin:0 0 10px}
+.card{background:var(--c);border:1px solid var(--ln);border-radius:8px;padding:12px;margin:0 0 10px}
+.q[hidden]{display:none}
+.q p{margin:0 0 8px;font-weight:600}.q p b{color:var(--ac);margin-right:6px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.o{flex:1 1 auto;min-width:46%;display:block}.o input{position:absolute;opacity:0}
+.o span{display:block;padding:11px 12px;border:1.5px solid var(--ln);border-radius:8px;background:var(--bg)}
+.o input:checked+span{background:var(--sel);border-color:var(--ac);font-weight:600}
+.o input:focus-visible+span,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--ac);outline-offset:1px}
+input[type=text],input[type=number],textarea,select{width:100%;padding:11px;border:1.5px solid var(--ln);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+.tx{margin-top:8px}.fr{display:flex;align-items:center;gap:10px;margin:6px 0}.fr span{flex:1}.fr input,.fr select{flex:1}
+.fr.s input{flex:0 0 90px}.na{margin-top:8px;display:flex;gap:8px;align-items:center;color:var(--mut)}.na input{width:22px;height:22px}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--c);border-top:1px solid var(--ln);padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;max-width:100%}
+.bar button{flex:1}
+button{font:inherit;font-weight:600;padding:13px;border-radius:8px;border:1.5px solid var(--ac);background:var(--c);color:var(--ac)}
+button.p{background:var(--ac);color:var(--on)}
+textarea{min-height:140px;font:13px/1.3 ui-monospace,monospace}
+.msg{color:var(--ac);font-weight:600;margin:6px 0}
+details summary{font-weight:600;cursor:pointer}
+</style></head><body><main>
+<h1>Entretien à la sortie – Planification familiale</h1>
+<p class="sub">Module 3 · UNFPA / Ministère de la Santé du Niger · Sept. 2026</p>
+<div class="card"><details><summary>Informations de l'enquête</summary><div id="hd"></div></details></div>
+<div class="card"><details><summary>Texte de consentement à lire au client</summary>
+<p class="sub">Je ne suis pas du personnel de cette formation sanitaire. Je travaille pour l'UNFPA en partenariat avec le Ministère de la Santé du Niger. Nous voulons savoir si les clients de la planification familiale sont bien accueillis et satisfaits. L'entretien dure une dizaine de minutes. Ce que vous direz restera confidentiel et personne dans cette formation sanitaire ne saura ce qui a été dit. Vous avez le droit de refuser de répondre.</p></details></div>
+<div id="f"></div>
+<div class="card"><div class="msg" id="msg"></div><p class="sub">Fiches enregistrées sur ce téléphone : <b id="cnt">0</b></p>
+<button id="bx" style="width:100%">Voir / copier les données (CSV)</button>
+<textarea id="out" hidden readonly></textarea>
+<div id="ex" hidden style="display:none;gap:8px;margin-top:8px"><button id="cp" class="p" style="flex:1">Copier</button><button id="sh" style="flex:1">Partager</button><button id="cl" style="flex:1">Vider</button></div></div>
+</main>
+<div class="bar"><button class="p" id="sv">Enregistrer ce client</button></div>
+<script>
+const YN=['Oui','Non'],YNA=['Oui','Non','Non applicable'],PRE='Préciser si « Autres »';
+const S=[
+['14.1 Renseignements sur le répondant',[
+{id:'consent',q:'Consentement obtenu ?',o:YN},
+{id:'086',q:'Âge en années révolues',t:'n',u:'ans'},
+{id:'087',q:'Sexe',o:['Homme','Femme']},
+{id:'088',q:'Situation conjugale',o:['Jamais marié(e) ou jamais été en couple','Marié(e) ou en couple','Anciennement marié(e) (divorcé/séparé/veuf)']},
+{id:'089',q:'Niveau d\'éducation',o:['Pas d\'éducation','Primaire','Secondaire et supérieur']},
+{id:'089a',q:'Profession',o:['Ménagère/cultivateur','Élève/Étudiant(e)','Secteur informel/Commerce','Employé du public ou du privé','Autres*']},
+{id:'090',q:'À quelle fréquence vous rendez-vous au PPS pour des services de PF ?',o:['1 fois par mois','Tous les 2 mois','Tous les 3 mois','Tous les 6 mois','Autres*']},
+{id:'090a',q:'Quelle méthode/produit contraceptif êtes-vous venu chercher aujourd\'hui ?',o:['Préservatif masculin','Préservatif féminin','Pilules','Injectables','5a|DIU – pose','5b|DIU – retrait','6a|Implant – insertion','6b|Implant – retrait','7|Contraception d\'urgence','8|Collier du cycle','9|Ligature des trompes','10|Vasectomie','11|Conseil pour adoption d\'une méthode de PF','12|Autres*']},
+{id:'090b',q:'Depuis combien de temps utilisez-vous cette méthode ?',o:['Première fois (sauter d et e)','Moins d\'un mois','Un à trois mois','Trois à six mois','Entre 6 et 12 mois','Plus de 12 mois']},
+{id:'090c',q:'Qu\'est-ce qui justifie le choix de cette méthode ? (plusieurs réponses)',t:'m',o:['Coût abordable','Durée d\'action de la méthode','Proposition d\'un agent de santé','Choix du conjoint/partenaire','Conseil d\'un parent/ami(e)','Discrétion','Facilité d\'utilisation','Protection contre les IST','Autre*']},
+{id:'090d',q:'Êtes-vous satisfait(e) de la méthode ?',o:YN,pre:'Si Non, pourquoi ?',v:d=>d['090b']!=1},
+{id:'090e',q:'Depuis que vous utilisez cette méthode, êtes-vous tombée enceinte sans le vouloir ?',o:['Oui, avec une utilisation correcte','Oui, mais je ne l\'utilisais pas correctement','Non, jamais tombée depuis que je l\'utilise'],v:d=>d['090b']!=1},
+{id:'090f',q:'Votre conjoint sait-il que vous utilisez une méthode contraceptive ?',o:['Oui, je l\'ai informé','Oui, je ne l\'ai pas informé mais il a su','Oui, on a décidé ensemble d\'adopter une méthode','Non, il ne sait pas']},
+{id:'090g',q:'Si votre conjoint est au courant ou s\'en rend compte, comment va-t-il réagir ?',o:['Il va m\'encourager','Il ne sera pas content','Je ne sais pas quelle sera sa réaction'],v:d=>d['090f']==4}]],
+['14.2 Aspects techniques',[
+{id:'091',q:'Avez-vous pu bénéficier de la méthode de PF de votre choix ?',o:YNA},
+{id:'092',q:'Le prestataire a-t-il tenu compte de vos préférences avant de choisir la méthode administrée ?',o:YNA},
+{id:'093',q:'L\'agent sanitaire vous a-t-il appris à utiliser la méthode ?',o:YNA},
+{id:'094',q:'Avez-vous été informé(e) des effets secondaires courants de la méthode ?',o:YNA},
+{id:'095',q:'L\'agent vous a-t-il informé(e) de la marche à suivre en cas d\'effets secondaires ?',o:YNA},
+{id:'096',q:'L\'agent vous a-t-il informé(e) des complications graves nécessitant de revenir au PPS ?',o:YNA},
+{id:'097',q:'Vous a-t-on fixé un rendez-vous de contrôle et/ou de remise de fournitures ?',o:YNA}]],
+['14.3 Aspects organisationnels',[
+{id:'098',q:'Avez-vous trouvé l\'attente trop longue avant la prestation du service ?',o:YN},
+{id:'098a',q:'Combien de temps avez-vous attendu avant de recevoir la visite ?',o:['Moins de 15 minutes','Entre 15 et 30 minutes','Entre 30 et 45 minutes','Entre 45 et 60 minutes','Plus de 60 minutes']},
+{id:'098b',q:'Combien de patients/clients attendaient d\'être reçus avant vous ?',o:['Il n\'y avait pas de patients','Moins de 5','Entre 5 et 10','Plus de 10']},
+{id:'099',q:'Êtes-vous satisfait(e) de la propreté de l\'établissement ?',o:YN},
+{id:'099a',q:'Propreté par rapport à d\'autres formations sanitaires que vous connaissez ?',o:['Moins propre','Plus propre','Pas de différence','Ne connaît pas une autre formation sanitaire']},
+{id:'099b',q:'Que suggérez-vous au personnel en matière de propreté des locaux et des équipements ?',t:'a'},
+{id:'100',q:'Êtes-vous satisfait(e) de la confidentialité dont vous avez bénéficié dans la salle d\'examen ?',o:YN},
+{id:'100a',q:'Y avait-il d\'autres patients/clients dans la salle quand l\'agent vous consultait ?',o:YN},
+{id:'100b',q:'Y avait-il d\'autre personnel de santé dans la salle quand l\'agent vous consultait ?',o:YN},
+{id:'100c',q:'La salle était-elle isolée ou fermée de sorte que ceux du dehors n\'entendent pas votre conversation ?',o:YN},
+{id:'100d',q:'Avez-vous déjà entendu qu\'un agent de santé de cette formation a parlé de la maladie ou de la pratique contraceptive des patients avec ses amis en ville ?',o:YN},
+{id:'101',q:'Êtes-vous satisfait(e) du temps que le prestataire vous a consacré ?',o:YN},
+{id:'101a',q:'Combien de temps environ le prestataire s\'est-il consacré à vous ?',o:['Moins de 5 minutes','Entre 5 et 15 minutes','Entre 15 et 30 minutes','Entre 30 et 45 minutes','Entre 45 et 60 minutes','Plus de 60 minutes']}]],
+['14.4 Aspects relationnels',[
+{id:'102',q:'Le personnel du PPS vous a-t-il traité(e) avec courtoisie et respect ?',o:YN},
+{id:'103',q:'L\'un des prestataires vous a-t-il forcé(e) à accepter la méthode de PF, ou a-t-il insisté pour que vous l\'acceptiez ?',o:YNA},
+{id:'104',q:'Êtes-vous satisfait(e) de l\'attitude globale du prestataire à votre égard ?',o:YN},
+{id:'104a',q:'Si non, qu\'est-ce qui ne vous a pas plu dans l\'offre de service d\'aujourd\'hui ?',t:'a',v:d=>d['104']==2}]],
+['14.5 Résultats',[
+{id:'105',q:'Êtes-vous satisfait(e) du service reçu ?',o:YN},
+{id:'105a',q:'Si non, qu\'est-ce qui ne vous a pas plu dans l\'offre de service d\'aujourd\'hui ?',t:'a',v:d=>d['105']==2},
+{id:'106',q:'Reviendriez-vous dans ce PPS ?',o:YN},
+{id:'107',q:'Recommanderiez-vous ce PPS à des membres de votre famille ou à des amis ?',o:YN}]],
+['15.1 Paiement des services de PF',[
+{id:'108',q:'Avez-vous payé les services de PF dont vous avez bénéficié aujourd\'hui ?',o:YN},
+{id:'109',q:'Combien cela a-t-il coûté (en FCFA) ?',t:'f',f:['Carte','Examen de laboratoire/radiographie','Contraceptif remis par le prestataire','Contraceptif acheté à la pharmacie','Consultation','Autres'],v:d=>d['108']==1}]],
+['15.2 Coût du déplacement',[
+{id:'110',q:'Quel moyen de transport principal avez-vous utilisé pour aller au PPS ?',o:['Marche','Vélo','Moto','Bus/taxi','Véhicule privé','Autres*']},
+{id:'111',q:'Quelle distance sépare votre lieu de résidence du PPS ?',t:'dist'},
+{id:'112',q:'Combien a coûté le transport de votre résidence au PPS ?',t:'na',na:'Non applicable (marche) – passer à 114'},
+{id:'113',q:'Combien vous coûtera le transport de retour ?',t:'na',na:'Non applicable (marche)'}]],
+['15.3 Temps passé et coût',[
+{id:'114',q:'Durée du trajet entre votre résidence et le PPS aujourd\'hui ?',t:'hm'},
+{id:'115',q:'Délai d\'attente entre votre arrivée au PPS et l\'exécution du service ?',t:'hm'},
+{id:'116',q:'Durée du trajet de retour à votre résidence ?',t:'hm'},
+{id:'117',q:'Quelle activité auriez-vous principalement effectuée pendant le temps passé au PPS ?',o:['Travaux ménagers','Travail sur l\'exploitation agricole familiale','Vente au marché/commerce','Emploi d\'ouvrier non qualifié','Emploi d\'ouvrier qualifié','Emploi de bureau ou profession libérale','Autres*']},
+{id:'118',q:'Qui s\'est chargé de votre activité ?',o:['Membre de la famille','Collègue','Personne']},
+{id:'119',q:'Avez-vous dû payer la personne qui a effectué l\'activité à votre place ?',o:YN},
+{id:'120',q:'Si oui, valeur monétaire du paiement (FCFA)',t:'n',u:'FCFA',v:d=>d['119']==1}]],
+['15.4 Financement des services de PF',[
+{id:'121',q:'D\'où proviennent les ressources qui vous ont permis de payer les services de PF ? (plusieurs réponses)',t:'m',o:['Moi-même','Conjoint(e)','Membres de la famille autres que le conjoint','Autres*']},
+{id:'122',q:'Montant payé avec ces ressources (FCFA)',t:'f',f:['Moi-même','Conjoint(e)','Membres de la famille autres que le conjoint','Autres']}]]
+];
+const Q=S.flatMap(s=>s[1]),$=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+const num=(k,ph)=>`<input type="number" inputmode="decimal" data-k="${k}" placeholder="${ph||''}">`;
+function ctl(q){const k=q.id,t=q.t||'r';
+ if(q.o){const ty=t=='m'?'checkbox':'radio';
+  const h=q.o.map((x,i)=>{let [c,l]=x.includes('|')?x.split('|'):[i+1,x];l=l.replace('*','');return `<label class="o"><input type="${ty}" name="${k}" value="${c}" data-k="${k}"${t=='m'?' data-m="1"':''}><span>${esc(l)}</span></label>`}).join('');
+  const pre=q.pre||(q.o.some(x=>x.endsWith('*'))?PRE:'');
+  return `<div class="opts">${h}</div>`+(pre?`<input type="text" class="tx" data-k="${k}_pre" placeholder="${pre}">`:'')}
+ if(t=='n')return num(k,q.u);
+ if(t=='a')return `<textarea data-k="${k}" style="min-height:80px;font:inherit"></textarea>`;
+ if(t=='f')return q.f.map((l,i)=>`<label class="fr"><span>${esc(l)}</span>${num(k+'_'+(i+1),'FCFA')}</label>`).join('');
+ if(t=='hm')return `<div class="fr s"><span></span>${num(k+'_h','h')} <span style="flex:0">h</span>${num(k+'_min','min')} <span style="flex:0">min</span></div>`;
+ if(t=='na')return num(k,'FCFA')+`<label class="na"><input type="checkbox" data-k="${k}_na"> ${q.na}</label>`;
+ if(t=='dist')return `<div class="fr">${num(k,'Distance')}<select data-k="${k}_u"><option value="1">Kilomètres</option><option value="2">Miles</option></select></div>`}
+let d={};
+function build(){$('#f').innerHTML=S.map(s=>`<h2>${s[0]}</h2>`+s[1].map(q=>`<div class="card q" id="q${q.id}"><p><b>${q.id==='consent'?'':q.id}</b>${esc(q.q)}</p>${ctl(q)}</div>`).join('')).join('');d={};vis()}
+function vis(){Q.forEach(q=>{if(q.v)$('#q'+q.id).hidden=!q.v(d)})}
+document.addEventListener('input',e=>{const el=e.target,k=el.dataset.k;if(el.dataset.h){H[el.dataset.h]=el.value;sh();return}
+ if(!k)return;
+ if(el.dataset.m)d[k]=[...document.querySelectorAll(`input[name="${k}"]:checked`)].map(x=>x.value).join('|');
+ else if(el.type=='checkbox')d[k]=el.checked?1:'';
+ else d[k]=el.value;vis()});
+/* en-tête persistant */
+const HF=[['region','Région'],['district','District'],['pps','Nom du PPS'],['pps_id','Code ID du PPS'],['enq','Nom enquêteur'],['enq_id','Code enquêteur']];
+let H={};try{H=JSON.parse(localStorage.getItem('pf_h')||'{}')}catch(e){}
+H.client=H.client||1;
+function sh(){try{localStorage.setItem('pf_h',JSON.stringify(H))}catch(e){}}
+$('#hd').innerHTML=HF.map(([k,l])=>`<label class="fr"><span>${l}</span><input type="text" data-h="${k}" value="${esc(H[k]||'')}"></label>`).join('')+`<label class="fr"><span>N° du client</span><input type="number" data-h="client" value="${H.client}"></label>`;
+/* enregistrement */
+let R=[];try{R=JSON.parse(localStorage.getItem('pf_r')||'[]')}catch(e){}
+const upd=()=>$('#cnt').textContent=R.length;
+function save(){
+ Q.forEach(q=>{if(q.v&&!q.v(d))Object.keys(d).forEach(k=>{if(k==q.id||k.startsWith(q.id+'_'))delete d[k]})});
+ if(!Object.keys(d).length){$('#msg').textContent='Rien à enregistrer : remplissez au moins une question.';return}
+ R.push({date:new Date().toISOString().slice(0,16).replace('T',' '),...H,...d});
+ try{localStorage.setItem('pf_r',JSON.stringify(R))}catch(e){$('#msg').textContent='Mémoire pleine : exportez et videz.';return}
+ H.client=(+H.client||0)+1;sh();document.querySelector('[data-h=client]').value=H.client;
+ build();upd();$('#msg').textContent='Fiche enregistrée. Client suivant : n° '+H.client;scrollTo({top:0})}
+function csv(){const keys=[];R.forEach(r=>Object.keys(r).forEach(k=>keys.includes(k)||keys.push(k)));
+ const ord=['date',...HF.map(x=>x[0]),'client'],qk=[...document.querySelectorAll('#f [data-k]')].map(e=>e.dataset.k);
+ const all=[...new Set([...ord,...qk,...keys])].filter(k=>keys.includes(k));
+ const c=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+ return [all.map(c).join(','),...R.map(r=>all.map(k=>c(r[k])).join(','))].join('\n')}
+$('#sv').onclick=save;
+$('#bx').onclick=()=>{$('#out').hidden=false;$('#ex').style.display='flex';$('#out').value=R.length?csv():'Aucune fiche enregistrée.'};
+$('#cp').onclick=async()=>{const o=$('#out');o.select();try{await navigator.clipboard.writeText(o.value);$('#msg').textContent='Données copiées.'}catch(e){document.execCommand&&document.execCommand('copy');$('#msg').textContent='Copiez le texte sélectionné.'}};
+$('#sh').onclick=async()=>{try{await navigator.share({title:'Fiches PF Niger',text:$('#out').value})}catch(e){$('#msg').textContent='Partage indisponible : utilisez Copier.'}};
+let arm=0;$('#cl').onclick=()=>{if(!arm){arm=1;$('#cl').textContent='Confirmer ?';setTimeout(()=>{arm=0;$('#cl').textContent='Vider'},4000);return}
+ R=[];try{localStorage.removeItem('pf_r')}catch(e){}upd();$('#out').value='';arm=0;$('#cl').textContent='Vider';$('#msg').textContent='Fiches supprimées.'};
+build();upd();
+</script></body></html>

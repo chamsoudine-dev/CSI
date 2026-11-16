@@ -53,6 +53,33 @@ function estEnRetard(mois, statut, soumis_le, jourLimite = 5) {
   return new Date() > dateLimite;
 }
 
+// ── Vue HTMX : Formulaire de Saisie Rapport ──────────────────────────────────
+router.get('/saisie/view', auth(), wrap(async (req, res) => {
+  const html = `
+    <div x-data="{
+      stockDebut: 0, entrees: 0, sorties: 0,
+      get stockFin() { return Math.max(0, this.stockDebut + this.entrees - this.sorties) }
+    }" class="form-container">
+      <h3>✏️ Nouveau Rapport Mensuel</h3>
+      <form hx-put="/api/rapport" hx-target="#msg-zone" hx-swap="innerHTML">
+        <label>CSI ID: <input type="number" name="csi_id" required></label>
+        <label>Mois (YYYY-MM): <input type="text" name="mois" placeholder="2026-11" required></label>
+
+        <fieldset>
+          <legend>Médicament (Exemple de calcul temps réel)</legend>
+          <label>Début: <input type="number" x-model.number="stockDebut"></label>
+          <label>Entrées: <input type="number" x-model.number="entrees"></label>
+          <label>Sorties: <input type="number" x-model.number="sorties"></label>
+          <p>Stock Final théorique : <strong x-text="stockFin"></strong></p>
+        </fieldset>
+
+        <button type="submit" class="btn btn-primary">Enregistrer le rapport</button>
+      </form>
+    </div>
+  `;
+  res.send(html);
+}));
+
 // ─── GET /api/rapport ── Consultation d'un rapport ────────────────────────────
 router.get('/rapport', auth(), wrap(async (req, res) => {
   const { csi_id, mois } = req.query;
@@ -99,7 +126,7 @@ router.get('/rapport', auth(), wrap(async (req, res) => {
 }));
 
 // ─── GET /api/rapports/liste ── Liste des rapports avec statut & filtres ──────
-router.get('/rapports/liste', auth(['admin', 'superviseur']), wrap(async (req, res) => {
+router.get('/rapports/liste', auth(['admin', 'superviseur', 'superviseur_national']), wrap(async (req, res) => {
   const { mois, region_id, statut } = req.query;
   const m = moisDate(mois);
   const { role, region_id: userRegion } = req.user;
@@ -264,7 +291,7 @@ router.post('/rapport/:id/soumettre', auth(), validateIdParam, wrap(async (req, 
 }));
 
 // ─── POST /api/rapport/:id/valider ── Validation Superviseur / Admin ──────────
-router.post('/rapport/:id/valider', auth(['admin', 'superviseur']), validateIdParam, wrap(async (req, res) => {
+router.post('/rapport/:id/valider', auth(['admin', 'superviseur', 'superviseur_national']), validateIdParam, wrap(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { commentaire } = req.body || {};
 
@@ -325,7 +352,7 @@ router.post('/rapport/:id/valider', auth(['admin', 'superviseur']), validateIdPa
 }));
 
 // ─── POST /api/rapport/:id/renvoyer ── Renvoi avec motif Superviseur / Admin ──
-router.post('/rapport/:id/renvoyer', auth(['admin', 'superviseur']), validateIdParam, wrap(async (req, res) => {
+router.post('/rapport/:id/renvoyer', auth(['admin', 'superviseur', 'superviseur_national']), validateIdParam, wrap(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { commentaire } = req.body || {};
 

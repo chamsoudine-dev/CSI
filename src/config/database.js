@@ -6,7 +6,7 @@ const pool = new Pool({
   max: 20,                        // max 20 connexions simultanées
   min: 2,                         // garder 2 connexions en veille
   idleTimeoutMillis: 30000,       // ferme les connexions inactives après 30s
-  connectionTimeoutMillis: 5000,  // timeout si aucune connexion disponible
+  connectionTimeoutMillis: 30000, // timeout si aucune connexion disponible (30s sous Docker)
   ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false
 });
 

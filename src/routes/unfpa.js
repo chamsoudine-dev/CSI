@@ -145,7 +145,7 @@ router.post('/:id/soumettre', auth(), validateIdParam, wrap(async (req, res) => 
 }));
 
 // ─── POST /api/unfpa/:id/valider ── Validation Superviseur / Admin ────────────
-router.post('/:id/valider', auth(['admin', 'superviseur']), validateIdParam, wrap(async (req, res) => {
+router.post('/:id/valider', auth(['admin', 'superviseur', 'superviseur_national']), validateIdParam, wrap(async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { rows } = await pool.query('SELECT * FROM enquetes_unfpa WHERE id = $1', [id]);
   if (!rows[0]) return res.status(404).json({ erreur: 'Enquête introuvable' });
