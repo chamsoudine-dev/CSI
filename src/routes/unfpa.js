@@ -11,6 +11,78 @@ const wrap = f => (req, res) => f(req, res).catch(e => {
   res.status(500).json({ erreur: 'Erreur serveur' });
 });
 
+// ── Vue HTMX : Enquêtes UNFPA ──
+router.get('/view', auth(), async (req, res) => {
+  try {
+    const annee = req.query.annee ? parseInt(req.query.annee, 10) : new Date().getFullYear();
+    const { role, csi_id: userCsi, region_id: userRegion } = req.user;
+    let where = 'WHERE e.annee = $1';
+    const params = [annee];
+
+    if (role === 'agent') {
+      params.push(userCsi);
+      where += ` AND e.csi_id = $${params.length}`;
+    } else if (role === 'superviseur') {
+      params.push(userRegion);
+      where += ` AND g.id = $${params.length}`;
+    }
+
+    const { rows } = await pool.query(`
+      SELECT e.id, e.csi_id, e.annee, e.statut, e.soumis_le, e.cree_le, e.modifie_le,
+             s.nom AS csi_nom, c.nom AS commune_nom, g.nom AS region_nom, u.nom AS auteur_nom
+      FROM enquetes_unfpa e
+      JOIN csi s ON s.id = e.csi_id
+      JOIN communes c ON c.id = s.commune_id
+      JOIN regions g ON g.id = c.region_id
+      LEFT JOIN utilisateurs u ON u.id = e.auteur_id
+      ${where}
+      ORDER BY g.nom, c.nom, s.nom
+    `, params);
+
+    const html = `
+      <div class="unfpa-view">
+        <h3>📋 Enquêtes UNFPA / Bincike UNFPA</h3>
+        <div class="filters" style="margin-bottom:16px; display:flex; gap:12px; flex-wrap:wrap;">
+          <select name="annee" hx-get="/api/unfpa/view" hx-target="#unfpa" hx-trigger="change" class="form-select">
+            ${[2024,2025,2026,2027].map(y => `<option value="${y}" ${annee===y?'selected':''}>${y}</option>`).join('')}
+          </select>
+          <button class="btn btn-primary" hx-get="/api/unfpa/create-view" hx-target="#unfpa-create">➕ Nouvelle enquête</button>
+        </div>
+        <div id="unfpa-create"></div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead><tr><th>CSI</th><th>Commune</th><th>Région</th><th>Année</th><th>Statut</th><th>Auteur</th><th>Soumis le</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${rows.map(e => `
+                <tr>
+                  <td>${e.csi_nom}</td>
+                  <td>${e.commune_nom}</td>
+                  <td>${e.region_nom}</td>
+                  <td>${e.annee}</td>
+                  <td><span class="badge status-${e.statut.toLowerCase()}">${e.statut}</span></td>
+                  <td>${e.auteur_nom || '-'}</td>
+                  <td>${e.soumis_le ? new Date(e.soumis_le).toLocaleString() : '-'}</td>
+                  <td>
+                    ${e.statut === 'BROUILLON' ? `<button class="btn btn-sm btn-primary" hx-get="/api/unfpa/${e.id}/edit-view" hx-target="#unfpa-form-${e.id}">✏️ Modifier</button>` : ''}
+                    ${e.statut === 'BROUILLON' ? `<button class="btn btn-sm btn-success" hx-post="/api/unfpa/${e.id}/soumettre" hx-target="#msg-zone">📤 Soumettre</button>` : ''}
+                    ${['SOUMIS'].includes(e.statut) && (req.user.role==='admin'||req.user.role==='superviseur') ? `<button class="btn btn-sm btn-success" hx-post="/api/unfpa/${e.id}/valider" hx-target="#msg-zone">✅ Valider</button>` : ''}
+                    <div id="unfpa-form-${e.id}"></div>
+                  </td>
+                </tr>
+              `).join('') || '<tr><td colspan="8" class="text-center">Aucune enquête</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    res.send(html);
+  } catch (err) {
+    logger.error({ err }, 'Erreur vue UNFPA');
+    res.status(500).send('<div class="error">Erreur chargement UNFPA</div>');
+  }
+});
+
 // ─── GET /api/unfpa ── Lecture d'une enquête ou liste par périmètre ───────────
 router.get('/', auth(), wrap(async (req, res) => {
   const { csi_id, annee } = req.query;

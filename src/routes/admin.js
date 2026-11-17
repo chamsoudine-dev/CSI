@@ -10,6 +10,63 @@ const wrap = f => (req, res) => f(req, res).catch(e => {
   res.status(500).json({ erreur: 'Erreur serveur admin' });
 });
 
+// ── Vue HTMX : Administration ──
+router.get('/view', auth(['admin']), async (req, res) => {
+  const { rows: users } = await pool.query(`
+    SELECT u.id, u.email, u.nom, u.role, u.actif, u.csi_id, u.region_id, u.cree_le, u.derniere_connexion,
+           c.nom AS csi_nom, g.nom AS region_nom
+    FROM utilisateurs u
+    LEFT JOIN csi c ON c.id = u.csi_id
+    LEFT JOIN regions g ON g.id = u.region_id
+    ORDER BY u.role, u.nom
+  `);
+
+  const html = `
+    <div class="admin-view">
+      <h3>👥 Administration / Mulki / Mulkin</h3>
+      <div class="admin-tabs" style="display:flex; gap:8px; margin-bottom:16px; border-bottom:1px solid var(--border);">
+        <button class="tab-btn active" onclick="showAdminTab('users')">👥 Utilisateurs</button>
+        <button class="tab-btn" onclick="showAdminTab('audit')">📜 Audit</button>
+        <button class="tab-btn" onclick="showAdminTab('params')">⚙️ Paramètres</button>
+      </div>
+
+      <div id="tab-users" class="tab-content active">
+        <button class="btn btn-primary" style="margin-bottom:12px" hx-get="/api/admin/user-create-view" hx-target="#user-form">➕ Nouvel utilisateur</button>
+        <div id="user-form"></div>
+        <div class="table-responsive"><table class="data-table"><thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>CSI</th><th>Région</th><th>Statut</th><th>Dernière connexion</th><th>Actions</th></tr></thead><tbody>
+          ${users.map(u => `
+            <tr>
+              <td>${u.nom}</td>
+              <td>${u.email}</td>
+              <td><span class="badge role-${u.role}">${u.role}</span></td>
+              <td>${u.csi_nom || '-'}</td>
+              <td>${u.region_nom || '-'}</td>
+              <td><span class="badge ${u.actif ? 'badge-success' : 'badge-warning'}">${u.actif ? 'Actif' : 'Inactif'}</span></td>
+              <td>${u.derniere_connexion ? new Date(u.derniere_connexion).toLocaleString() : 'Jamais'}</td>
+              <td>
+                <button class="btn btn-sm btn-secondary" hx-get="/api/admin/user/${u.id}/edit-view" hx-target="#user-form">✏️</button>
+                <button class="btn btn-sm btn-danger" hx-delete="/api/admin/user/${u.id}" hx-confirm="Supprimer ?" hx-target="closest tr" hx-swap="outerHTML">🗑️</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody></table></div>
+      </div>
+
+      <div id="tab-audit" class="tab-content">
+        <iframe src="/api/admin/audit?format=html" style="width:100%; height:500px; border:none; border-radius:8px;"></iframe>
+      </div>
+
+      <div id="tab-params" class="tab-content">
+        <div id="params-content"></div>
+        <button class="btn btn-secondary" hx-get="/api/admin/parametres" hx-target="#params-content" style="margin-bottom:12px">Charger paramètres</button>
+      </div>
+    </div>
+    <style>.admin-tabs{display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border);}.tab-btn{padding:8px 16px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-weight:500;color:var(--text-muted);}.tab-btn.active{border-bottom-color:var(--primary);color:var(--primary);}.tab-content{display:none;padding:16px 0;}.tab-content.active{display:block;animation:fadeIn .2s}</style>
+    <script>function showAdminTab(id){document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));event.target.classList.add('active');document.getElementById('tab-'+id).classList.add('active');}</script>
+  `;
+  res.send(html);
+});
+
 // ─── GET /api/admin/audit ── Journal d'audit paginé & filtrable (Admin) ────────
 router.get('/audit', auth(['admin']), wrap(async (req, res) => {
   const { utilisateur_id, action, table_cible, date_debut, date_fin, page = 1, limit = 50, format } = req.query;

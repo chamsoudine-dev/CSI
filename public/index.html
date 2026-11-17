@@ -31,110 +31,9 @@
 
 
 <!-- ======================================================================= -->
-<!-- ÉCRAN 1 : PAGE DE CONNEXION PLEIN ÉCRAN DÉDIÉE                         -->
-<!-- ======================================================================= -->
-<div id="auth-screen">
-  <div class="auth-topbar">
-    <div class="auth-republic-badge">
-      <div class="auth-flag-strip" role="img" aria-label="Drapeau du Niger">
-        <span></span><span></span><span></span>
-      </div>
-      <div>
-        <div style="font-size:0.88rem;font-weight:800;letter-spacing:0.03em">RÉPUBLIQUE DU NIGER</div>
-        <div style="font-size:0.74rem;color:var(--text-muted)">Ministère de la Santé et de l'Hygiène Publique</div>
-      </div>
-    </div>
-    <button class="btn btn-ghost btn-sm" id="auth-theme-toggle" title="Basculer le thème">🌓</button>
-  </div>
-
-  <div class="auth-container">
-    <div class="auth-card" style="max-width:540px">
-      <div class="auth-card-header">
-        <img src="/img/logo.png" alt="Logo MS/HP Niger" class="auth-card-logo">
-        <h1 style="font-size:1.35rem;font-weight:800;letter-spacing:-0.02em;margin-bottom:4px">CSI NIGER</h1>
-        <p style="font-size:0.82rem;color:var(--text-muted);margin:0">Portail National de Surveillance & Gestion des CSI</p>
-        <p style="font-size:0.82rem;color:var(--text-muted);margin:10px 0 0">Connectez-vous avec votre adresse e-mail et votre mot de passe. Votre espace (administrateur national, superviseur national ou régional, agent CSI) s'ouvrira selon votre compte.</p>
-      </div>
-
-      <div id="login-err" class="hid" style="margin-top:14px"></div>
-
-      <form id="login-form" style="margin-top:18px">
-        <div style="display:flex;flex-direction:column;gap:12px">
-          <label class="field">
-            <span>Adresse e-mail</span>
-            <input type="email" id="pw-email" autocomplete="username" placeholder="nom@exemple.ne" required>
-          </label>
-          <label class="field" id="password-field">
-            <span>Mot de passe</span>
-            <div class="password-input-wrap">
-              <input type="password" id="pw-pass" autocomplete="current-password" data-password-input required>
-              <button type="button" class="password-toggle" data-password-toggle="pw-pass" aria-label="Afficher le mot de passe" aria-pressed="false">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-              </button>
-            </div>
-          </label>
-          <label class="field hid" id="login-code-field">
-            <span>Code de vérification reçu par e-mail</span>
-            <input type="text" id="login-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code">
-          </label>
-        </div>
-
-        <div style="margin-top:14px">
-          <button class="btn btn-primary btn-lg" type="submit" id="login-btn" style="width:100%;justify-content:center;font-weight:700">
-            Se connecter
-          </button>
-        </div>
-      </form>
-
-      <form id="forgot-form" class="hid" style="margin-top:18px">
-        <p class="text-muted">Recevez un code pour réinitialiser votre mot de passe.</p>
-        <label class="field">
-          <span>Adresse e-mail du compte</span>
-          <input type="email" id="forgot-email" autocomplete="email" required>
-        </label>
-        <div id="reset-code-step" class="hid" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
-          <label class="field">
-            <span>Code reçu par e-mail</span>
-            <input type="text" id="reset-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code">
-          </label>
-          <label class="field">
-            <span>Nouveau mot de passe (8 caractères minimum)</span>
-            <div class="password-input-wrap">
-              <input type="password" id="reset-password" autocomplete="new-password" data-password-input minlength="8">
-              <button type="button" class="password-toggle" data-password-toggle="reset-password" aria-label="Afficher le nouveau mot de passe" aria-pressed="false">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-              </button>
-            </div>
-          </label>
-          <label class="field">
-            <span>Confirmer le nouveau mot de passe</span>
-            <div class="password-input-wrap">
-              <input type="password" id="reset-password-confirm" autocomplete="new-password" data-password-input minlength="8">
-              <button type="button" class="password-toggle" data-password-toggle="reset-password-confirm" aria-label="Afficher la confirmation du mot de passe" aria-pressed="false">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-              </button>
-            </div>
-          </label>
-        </div>
-        <button class="btn btn-primary" type="submit" id="forgot-btn" style="width:100%;margin-top:14px">Envoyer un code</button>
-        <button class="btn btn-ghost" type="button" id="back-login-btn" style="width:100%;margin-top:8px">Retour à la connexion</button>
-      </form>
-
-      <div style="margin-top:12px;text-align:center">
-        <button type="button" class="btn btn-ghost btn-sm" id="forgot-link">Mot de passe oublié ?</button>
-      </div>
-
-      <div class="auth-security-notice" style="margin-top:16px">
-        🔒 Connexion protégée par mot de passe. La vérification à deux étapes peut être activée dans votre profil.
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ======================================================================= -->
 <!-- ÉCRAN 2 : APPLICATION MÉTIER PRINCIPALE (AFFICHÉE APRÈS CONNEXION)       -->
 <!-- ======================================================================= -->
-<div id="app-screen" class="hid">
+<div id="app-screen">
 
   <!-- ── HEADER FIXE (pleine largeur) ── -->
   <header>
@@ -161,11 +60,18 @@
   <!-- ── SIDEBAR VERTICALE ── -->
   <nav id="nav">
     <button hx-get="/api/dashboard/view" hx-target="#tb" class="on">📊 <span class="nav-label">Tableau de bord</span></button>
-    <button hx-get="/api/patients/view" hx-target="#patients">🧑‍⚕️ <span class="nav-label">Dossier &amp; Patients</span></button>
+    <button hx-get="/api/patients/view" hx-target="#patients">🧑‍⚕️ <span class="nav-label">Dossier & Patients</span></button>
     <button hx-get="/api/csi/view" hx-target="#liste">📋 <span class="nav-label">Registre des CSI</span></button>
     <button hx-get="/api/catalogue/view" hx-target="#catalogue">💊 <span class="nav-label">Catalogue</span></button>
     <button hx-get="/api/missions/view" hx-target="#enquete" id="nav-enquete">🧭 <span class="nav-label">Missions</span></button>
-    <!-- ... autres boutons sur le même modèle ... -->
+    <button hx-get="/api/ravitaillement/view" hx-target="#ravitaillement">🚚 <span class="nav-label">Ravitaillement</span></button>
+    <button hx-get="/api/maternite/view" hx-target="#maternite">👶 <span class="nav-label">Maternité</span></button>
+    <button hx-get="/api/unfpa/view" hx-target="#unfpa">📋 <span class="nav-label">UNFPA</span></button>
+    <button hx-get="/api/alertes/view" hx-target="#alertes">🚨 <span class="nav-label">Alertes</span></button>
+    <button hx-get="/api/admin/view" hx-target="#utilisateurs">👥 <span class="nav-label">Utilisateurs</span></button>
+    <button hx-get="/api/logs/view" hx-target="#logs">📋 <span class="nav-label">Logs Système</span></button>
+    <button hx-get="/api/api-docs/view" hx-target="#api-docs">📚 <span class="nav-label">Doc API</span></button>
+    <button hx-get="/api/parametres/view" hx-target="#parametres">⚙️ <span class="nav-label">Paramètres</span></button>
   </nav>
 
   <!-- ── CONTENU PRINCIPAL (décalé à droite de la sidebar) ── -->
@@ -188,6 +94,9 @@
     <section id="audit" class="hid"></section>
     <section id="parametres" class="hid"></section>
     <section id="motdepasse" class="hid"></section>
+    <section id="unfpa" class="hid"></section>
+    <section id="logs" class="hid"></section>
+    <section id="api-docs" class="hid"></section>
   </main>
 
 </div>

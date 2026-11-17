@@ -11,6 +11,65 @@ const wrap = f => (req, res) => f(req, res).catch(e => {
   res.status(500).json({ erreur: 'Erreur serveur' });
 });
 
+// ── Vue HTMX : Registre des CSI ──
+router.get('/view', async (req, res) => {
+  try {
+    const { region, q } = req.query;
+    const conditions = [];
+    const params = [];
+
+    if (region) { params.push(parseInt(region)); conditions.push(`g.id = $${params.length}`); }
+    if (q) { params.push(`%${q}%`); conditions.push(`(s.nom ILIKE $${params.length} OR c.nom ILIKE $${params.length})`); }
+
+    const where = conditions.length ? 'WHERE s.actif AND ' + conditions.join(' AND ') : 'WHERE s.actif';
+
+    const [rows, regions] = await Promise.all([
+      pool.query(`SELECT s.id, s.nom, s.latitude, s.longitude, s.services, s.actif, c.nom AS commune, c.type, g.nom AS region, g.id AS region_id
+                  FROM csi s JOIN communes c ON c.id = s.commune_id JOIN regions g ON g.id = c.region_id
+                  ${where} ORDER BY g.nom, c.nom, s.nom LIMIT 100`, params),
+      pool.query('SELECT * FROM regions ORDER BY nom')
+    ]);
+
+    const html = `
+      <div class="csi-view">
+        <h3>📋 Registre des CSI / Rejista CSI / Rejistar CSI</h3>
+        <div class="filters" style="margin-bottom:16px; display:flex; gap:12px; flex-wrap:wrap;">
+          <select name="region" hx-get="/api/csi/view" hx-target="#liste" hx-trigger="change" class="form-select">
+            <option value="">Toutes les régions</option>
+            ${regions.rows.map(r => `<option value="${r.id}" ${region==r.id?'selected':''}>${r.nom}</option>`).join('')}
+          </select>
+          <input type="text" name="q" value="${q||''}" placeholder="Rechercher CSI ou commune..." hx-get="/api/csi/view" hx-target="#liste" hx-trigger="keyup changed delay:300ms" class="form-input" style="flex:1; min-width:200px; padding:8px 12px; border:1px solid var(--border); border-radius:6px;">
+          ${req.user?.role === 'admin' || req.user?.role === 'superviseur' ? '<button class="btn btn-primary" hx-get="/api/csi/create-view" hx-target="#csi-create">➕ Nouveau CSI</button>' : ''}
+        </div>
+        <div id="csi-create"></div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead><tr><th>Nom</th><th>Commune</th><th>Région</th><th>Type</th><th>Services</th><th>Coordonnées</th><th>Statut</th></tr></thead>
+            <tbody>
+              ${rows.rows.map(s => `
+                <tr>
+                  <td><strong>${s.nom}</strong></td>
+                  <td>${s.commune}</td>
+                  <td>${s.region}</td>
+                  <td><span class="badge">${s.type}</span></td>
+                  <td>${Array.isArray(s.services) ? s.services.join(', ') : (s.services || '-')}</td>
+                  <td>${s.latitude && s.longitude ? `${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}` : 'Non géolocalisé'}</td>
+                  <td><span class="badge ${s.actif ? 'badge-success' : 'badge-warning'}">${s.actif ? 'Actif' : 'Inactif'}</span></td>
+                </tr>
+              `).join('') || '<tr><td colspan="7" class="text-center">Aucun CSI trouvé</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    res.send(html);
+  } catch (err) {
+    logger.error({ err }, 'Erreur vue CSI');
+    res.status(500).send('<div class="error">Erreur chargement CSI</div>');
+  }
+});
+
 // ─── GET /api/regions ── Public ───────────────────────────────────────────────
 router.get('/regions', wrap(async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM regions ORDER BY nom');

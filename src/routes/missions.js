@@ -6,6 +6,103 @@ const { validateIdParam } = require('../middleware/scope');
 const { logAudit } = require('../utils/audit');
 const logger = require('../utils/logger');
 
+// ── Vue HTMX : Liste des missions ──
+router.get('/view', auth(['admin', 'agent']), async (req, res) => {
+  try {
+    let query, params = [];
+
+    if (req.user.role === 'admin') {
+      query = `
+        SELECT m.*, creator.nom AS createur_nom
+        FROM missions m
+        LEFT JOIN utilisateurs creator ON creator.id = m.cree_par
+        ORDER BY m.modifie_le DESC
+      `;
+    } else {
+      query = `
+        SELECT m.id, m.titre, m.description, m.formulaire, m.date_debut, m.date_limite, m.statut AS mission_statut,
+          a.id AS affectation_id, a.statut, a.reponses, a.affectee_le, a.acceptee_le,
+          a.soumise_le, a.modifiee_le,
+          CASE WHEN m.date_debut IS NOT NULL AND CURRENT_DATE < m.date_debut THEN 'A_VENIR'
+               WHEN m.date_limite IS NOT NULL AND CURRENT_DATE > m.date_limite THEN 'EXPIREE'
+               ELSE 'ACTIVE' END AS periode_statut,
+          c.id AS csi_id, c.nom AS csi_nom
+       FROM mission_affectations a
+       JOIN missions m ON m.id = a.mission_id
+       JOIN csi c ON c.id = a.csi_id
+       WHERE a.agent_id = $1 AND m.statut = 'PUBLIEE'
+       ORDER BY m.date_limite NULLS LAST, m.titre
+      `;
+      params = [req.user.id];
+    }
+
+    const { rows } = await pool.query(query, params);
+
+    const html = `
+      <div class="missions-view">
+        <h3>🧭 Missions & Enquêtes</h3>
+        ${req.user.role === 'admin' ? `
+          <button class="btn btn-primary" hx-get="/api/missions/create-view" hx-target="#missions-create" style="margin-bottom:16px">
+            ➕ Nouvelle Mission
+          </button>
+          <div id="missions-create"></div>
+        ` : ''}
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Titre</th>
+              <th>Statut</th>
+              <th>Début</th>
+              <th>Limite</th>
+              ${req.user.role === 'admin' ? '<th>Créateur</th>' : '<th>Progression</th>'}
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(m => {
+              const isAgent = req.user.role === 'agent';
+              const progress = m.reponses && m.formulaire && m.formulaire.fields
+                ? Math.round(Object.keys(m.reponses).length / m.formulaire.fields.length * 100)
+                : 0;
+              return `
+                <tr>
+                  <td><strong>${m.titre}</strong><br><small>${m.description || ''}</small></td>
+                  <td><span class="badge ${m.statut === 'PUBLIEE' ? 'badge-success' : 'badge-warning'}">${m.statut}</span></td>
+                  <td>${m.date_debut || '-'}</td>
+                  <td>${m.date_limite || '-'}</td>
+                  ${isAgent ? `<td><div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>${progress}%</td>` : `<td>${m.createur_nom || '-'}</td>`}
+                  <td>
+                    ${isAgent && m.affectation_id && m.statut === 'AFFECTEE' && m.periode_statut === 'ACTIVE' ? `
+                      <button class="btn btn-sm btn-primary" hx-post="/api/missions/${m.id}/accepter" hx-target="#msg-zone">Accepter</button>
+                    ` : ''}
+                    ${isAgent && m.affectation_id && ['ACCEPTEE', 'EN_COURS'].includes(m.statut) && m.periode_statut === 'ACTIVE' ? `
+                      <button class="btn btn-sm btn-secondary" hx-get="/api/missions/${m.id}/form-view" hx-target="#mission-form-${m.id}">Saisir</button>
+                      <div id="mission-form-${m.id}"></div>
+                    ` : ''}
+                    ${!isAgent ? `
+                      <button class="btn btn-sm btn-secondary" hx-get="/api/missions/${m.id}/detail-view" hx-target="#mission-detail-${m.id}">Détail</button>
+                      <div id="mission-detail-${m.id}"></div>
+                    ` : ''}
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <style>
+        .progress-bar { background: #e0e0e0; border-radius: 4px; height: 8px; overflow: hidden; }
+        .progress-fill { background: #0056b3; height: 100%; transition: width 0.3s; }
+      </style>
+    `;
+    res.send(html);
+  } catch (err) {
+    logger.error({ err }, 'Erreur vue missions');
+    res.status(500).send('<div class="error">Erreur chargement missions</div>');
+  }
+});
+
 const FIELD_TYPES = new Set(['text', 'textarea', 'number', 'date', 'select', 'multiselect', 'checkbox']);
 const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(error => {
   if (error.status) return res.status(error.status).json({ erreur: error.message });

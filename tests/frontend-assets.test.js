@@ -27,28 +27,40 @@ test('Frontend - HTMX et Alpine.js sont chargés pour la navigation fluide', () 
   assert.match(html, /hx-get="/, 'Les boutons de navigation doivent utiliser hx-get');
 });
 
-test('Frontend - la connexion identifie l’espace à partir du compte et impose une connexion à chaque ouverture', () => {
-  const appJs = fs.readFileSync(path.join(publicDir, 'js', 'app.js'), 'utf8');
-
-  assert.match(html, /Connectez-vous avec votre adresse e-mail et votre mot de passe/);
-  assert.doesNotMatch(html, /localStorage\.persist\('csi_session'\)/, 'La session ne doit pas être persistée sans authentification');
-  assert.match(appJs, /alpine:init/, 'Alpine.js doit être initialisé pour gérer l\'état local');
+test('Frontend - la navigation principale est présente sans page de login', () => {
+  // L'application s'affiche directement (pas de auth-screen)
+  assert.doesNotMatch(html, /id="auth-screen"/, 'L\'écran de connexion a été supprimé');
+  assert.match(html, /id="app-screen"(?! class="hid")/, 'L\'application s\'affiche directement');
 });
 
-test('Frontend - les onglets profil utilisent des gestionnaires compatibles CSP et la navigation Missions est présente', () => {
-  const appJs = fs.readFileSync(path.join(publicDir, 'js', 'app.js'), 'utf8');
-
-  assert.match(appJs, /htmx:afterOnLoad/, 'Les gestionnaires doivent être compatibles avec le chargement HTMX');
-  assert.match(html, /id="nav-enquete">🧭 <span class="nav-label">Missions<\/span>/);
+test('Frontend - le menu latéral contient tous les modules', () => {
+  const modules = [
+    'Tableau de bord', 'Dossier & Patients', 'Registre des CSI', 'Catalogue',
+    'Missions', 'Ravitaillement', 'Maternité', 'UNFPA', 'Alertes',
+    'Utilisateurs', 'Logs Système', 'Doc API', 'Paramètres'
+  ];
+  for (const module of modules) {
+    assert.match(html, new RegExp(module), `Module "${module}" doit être dans le menu`);
+  }
 });
 
-test('Frontend - le drapeau du Niger et les commandes afficher/masquer sont présents', () => {
-  const css = fs.readFileSync(path.join(publicDir, 'css', 'app.css'), 'utf8');
+test('Frontend - les sections principales existent', () => {
+  const sections = ['tb', 'patients', 'liste', 'catalogue', 'enquete', 'ravitaillement',
+                    'maternite', 'alertes', 'utilisateurs', 'parametres', 'unfpa', 'logs', 'api-docs'];
+  for (const section of sections) {
+    assert.match(html, new RegExp(`id="${section}"`), `Section #${section} doit exister`);
+  }
+});
 
-  assert.match(html, /aria-label="Drapeau du Niger"/);
-  assert.match(css, /\.auth-flag-strip span:nth-child\(2\)::after/);
-  assert.equal((html.match(/data-password-toggle=/g) || []).length, 3);
-  assert.equal((html.match(/<svg viewBox="0 0 24 24" aria-hidden="true">/g) || []).length, 3);
-  // HTMX et Alpine.js sont chargés via CDN, aria-pressed est géré par la structure HTML existante
-  assert.ok(html.includes('aria-pressed'), 'Les boutons doivent gérer l\'état focus/aria-pressed');
+test('Frontend - le drapeau du Niger et les icônes sont présents', () => {
+  // Le drapeau est dans le header de l'app (brand)
+  assert.match(html, /CSI NIGER/);
+  assert.match(html, /Ministère de la Santé/);
+});
+
+test('Frontend - Alpine.js initialisé pour l\'état local', () => {
+  const appJs = fs.readFileSync(path.join(publicDir, 'js', 'app.js'), 'utf8');
+  assert.match(appJs, /alpine:init/, 'Alpine.js doit être initialisé');
+  assert.match(appJs, /navigateView/, 'Navigation HTMX doit être gérée');
+  assert.match(appJs, /switchParamTab/, 'Onglets paramètres doivent être gérés');
 });

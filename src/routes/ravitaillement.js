@@ -20,6 +20,112 @@ const { checkCsiScope, validateIdParam } = require('../middleware/scope');
 const logger  = require('../utils/logger');
 const { logAudit } = require('../utils/audit');
 
+// ── Vue HTMX : Ravitaillement ──
+router.get('/view', auth(), async (req, res) => {
+  try {
+    const { statut, priorite } = req.query;
+    const conditions = [];
+    const params = [];
+
+    if (req.user.role === 'agent') {
+      params.push(req.user.csi_id);
+      conditions.push(`d.csi_id = $${params.length}`);
+    } else if (req.user.role === 'superviseur') {
+      params.push(req.user.region_id);
+      conditions.push(`co.region_id = $${params.length}`);
+    }
+
+    if (statut) { params.push(statut); conditions.push(`d.statut = $${params.length}`); }
+    if (priorite) { params.push(priorite); conditions.push(`d.priorite = $${params.length}`); }
+
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    const { rows } = await pool.query(`
+      SELECT d.id, d.numero_commande, d.csi_id, c.nom AS csi_nom, co.nom AS csi_commune, r.nom AS region_nom,
+             d.statut, d.priorite, d.motif, d.reponse_notes, d.date_demande,
+             COUNT(l.id) AS nb_produits, SUM(l.quantite_demandee) AS total_demande, SUM(l.quantite_accordee) AS total_accorde
+      FROM demandes_ravitaillement d
+      JOIN csi c ON c.id = d.csi_id
+      JOIN communes co ON co.id = c.commune_id
+      JOIN regions r ON r.id = co.region_id
+      LEFT JOIN demande_lignes l ON l.demande_id = d.id
+      ${where}
+      GROUP BY d.id, c.nom, co.nom, r.nom
+      ORDER BY d.date_demande DESC
+      LIMIT 50
+    `, params);
+
+    const html = `
+      <div class="ravitaillement-view">
+        <h3>🚚 Ravitaillement & Stocks / Aiki da Kayan</h3>
+        <div class="filters" style="margin-bottom:16px; display:flex; gap:12px; flex-wrap:wrap;">
+          <select name="statut" hx-get="/api/ravitaillement/view" hx-target="#ravitaillement" hx-trigger="change" class="form-select">
+            <option value="">Tous statuts</option>
+            <option value="DEMANDE" ${statut==='DEMANDE'?'selected':''}>📝 Demande</option>
+            <option value="EN_REVUE" ${statut==='EN_REVUE'?'selected':''}>👁️ En revue</option>
+            <option value="APPROUVE" ${statut==='APPROUVE'?'selected':''}>✅ Approuvé</option>
+            <option value="EXPEDIE" ${statut==='EXPEDIE'?'selected':''}>🚚 Expédié</option>
+            <option value="LIVRE" ${statut==='LIVRE'?'selected':''}>📦 Livré</option>
+            <option value="REJETE" ${statut==='REJETE'?'selected':''}>❌ Rejeté</option>
+          </select>
+          <select name="priorite" hx-get="/api/ravitaillement/view" hx-target="#ravitaillement" hx-trigger="change" class="form-select">
+            <option value="">Toutes priorités</option>
+            <option value="NORMALE" ${priorite==='NORMALE'?'selected':''}>🟢 Normale</option>
+            <option value="URGENTE" ${priorite==='URGENTE'?'selected':''}>🟠 Urgente</option>
+            <option value="CRITIQUE_RUPTURE" ${priorite==='CRITIQUE_RUPTURE'?'selected':''}>🔴 Rupture critique</option>
+          </select>
+          <button class="btn btn-primary" hx-get="/api/ravitaillement/create-view" hx-target="#ravitaillement-create">➕ Nouvelle demande</button>
+        </div>
+        <div id="ravitaillement-create"></div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr><th>N° Commande</th><th>CSI</th><th>Région</th><th>Statut</th><th>Priorité</th><th>Produits</th><th>Demandé</th><th>Accordé</th><th>Date</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              ${rows.map(d => `
+                <tr>
+                  <td><strong>${d.numero_commande}</strong></td>
+                  <td>${d.csi_nom}</td>
+                  <td>${d.region_nom}</td>
+                  <td><span class="badge status-${d.statut.toLowerCase()}">${d.statut}</span></td>
+                  <td><span class="badge prio-${d.priorite.toLowerCase()}">${d.priorite}</span></td>
+                  <td>${d.nb_produits}</td>
+                  <td>${d.total_demande || 0}</td>
+                  <td>${d.total_accorde || 0}</td>
+                  <td>${new Date(d.date_demande).toLocaleDateString()}</td>
+                  <td>
+                    <button class="btn btn-sm btn-secondary" hx-get="/api/ravitaillement/${d.id}/view" hx-target="#rav-detail-${d.id}">Voir</button>
+                    <div id="rav-detail-${d.id}"></div>
+                  </td>
+                </tr>
+              `).join('') || '<tr><td colspan="10" class="text-center">Aucune demande</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <style>
+        .filters { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
+        .form-select { padding:8px 12px; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text); }
+        .badge.status-demande { background:#e3f2fd; color:#1565c0; }
+        .badge.status-en_revue { background:#fff3e0; color:#ef6c00; }
+        .badge.status-approuve { background:#e8f5e9; color:#2e7d32; }
+        .badge.status-expedie { background:#f3e5f5; color:#7b1fa2; }
+        .badge.status-livre { background:#e8f5e9; color:#2e7d32; }
+        .badge.status-rejete { background:#fce4ec; color:#c62828; }
+        .badge.prio-normale { background:#e8f5e9; color:#2e7d32; }
+        .badge.prio-urgente { background:#fff3e0; color:#ef6c00; }
+        .badge.prio-critique_rupture { background:#fdeaea; color:#c62828; }
+      </style>
+    `;
+    res.send(html);
+  } catch (err) {
+    logger.error({ err }, 'Erreur vue ravitaillement');
+    res.status(500).send('<div class="error">Erreur chargement</div>');
+  }
+});
+
 // Matrice des transitions valides
 const TRANSITIONS_VALIDES = {
   'DEMANDE': ['EN_REVUE', 'APPROUVE', 'REJETE'],
