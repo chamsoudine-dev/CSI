@@ -161,7 +161,7 @@ const logsRoutes          = require('./src/routes/logs');
 const apiDocsRoutes       = require('./src/routes/api-docs');
 
 app.use('/api', authRoutes);
-app.use('/api', csiRoutes);
+app.use('/api/csi', csiRoutes);
 app.use('/api', rapportRoutes);
 app.use('/api', statsRoutes);
 app.use('/api', exportRoutes);

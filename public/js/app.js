@@ -17,6 +17,12 @@ window.appState = {
 
 // Navigation entre vues (appelée par onclick dans le HTML)
 window.navigateView = function(viewId) {
+  // Masquer toutes les sections
+  document.querySelectorAll('main > section').forEach(sec => sec.classList.add('hid'));
+  // Afficher la section demandée
+  const targetSection = document.getElementById(viewId);
+  if (targetSection) targetSection.classList.remove('hid');
+
   // Mettre à jour l'onglet actif visuellement
   document.querySelectorAll('#nav button').forEach(btn => btn.classList.remove('on'));
   const activeBtn = document.querySelector(`#nav button[hx-target="#${viewId}"]`) ||
@@ -34,6 +40,19 @@ document.addEventListener('alpine:init', () => {
 // Gestion du chargement HTMX
 document.body.addEventListener('htmx:afterOnLoad', (e) => {
   console.log('HTMX chargé:', e.detail.elt.id || e.detail.elt);
+});
+
+// Gestionnaires de clic sur la navigation latérale
+// Met à jour l'onglet actif (.on) quand on clique sur un bouton de nav
+document.addEventListener('click', (e) => {
+  const navBtn = e.target.closest('#nav button[hx-target]');
+  if (navBtn) {
+    const target = navBtn.getAttribute('hx-target');
+    if (target) {
+      const viewId = target.replace('#', '');
+      window.navigateView(viewId);
+    }
+  }
 });
 
 // Gestion des onglets dans les paramètres (compatibilité)

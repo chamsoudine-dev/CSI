@@ -54,7 +54,7 @@ router.get('/view', async (req, res) => {
                   <td>${s.region}</td>
                   <td><span class="badge">${s.type}</span></td>
                   <td>${Array.isArray(s.services) ? s.services.join(', ') : (s.services || '-')}</td>
-                  <td>${s.latitude && s.longitude ? `${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}` : 'Non géolocalisé'}</td>
+                  <td>${s.latitude && s.longitude ? `${Number(s.latitude).toFixed(4)}, ${Number(s.longitude).toFixed(4)}` : 'Non géolocalisé'}</td>
                   <td><span class="badge ${s.actif ? 'badge-success' : 'badge-warning'}">${s.actif ? 'Actif' : 'Inactif'}</span></td>
                 </tr>
               `).join('') || '<tr><td colspan="7" class="text-center">Aucun CSI trouvé</td></tr>'}
@@ -77,7 +77,7 @@ router.get('/regions', wrap(async (req, res) => {
 }));
 
 // ─── GET /api/csi ── Public avec pagination ───────────────────────────────────
-router.get('/csi', wrap(async (req, res) => {
+router.get('/', wrap(async (req, res) => {
   const { region, q, page = 1, limit = 100 } = req.query;
   const offset = (Math.max(1, parseInt(page)) - 1) * Math.min(200, parseInt(limit) || 100);
   const lim = Math.min(200, parseInt(limit) || 100);
@@ -118,7 +118,7 @@ router.get('/csi', wrap(async (req, res) => {
 const { validateIdParam } = require('../middleware/scope');
 
 // ─── GET /api/csi/:id ── Public ───────────────────────────────────────────────
-router.get('/csi/:id', validateIdParam('id'), wrap(async (req, res) => {
+router.get('/:id', validateIdParam('id'), wrap(async (req, res) => {
   const { rows } = await pool.query(
     `SELECT s.id, s.nom, s.latitude, s.longitude, s.services, s.actif, s.cree_le,
             c.nom AS commune, c.type, g.nom AS region, g.id AS region_id
@@ -133,7 +133,7 @@ router.get('/csi/:id', validateIdParam('id'), wrap(async (req, res) => {
 }));
 
 // ─── POST /api/csi ── Admin ou superviseur ────────────────────────────────────
-router.post('/csi', auth(['admin', 'superviseur', 'superviseur_national']), validate(schemas.csiSchema), wrap(async (req, res) => {
+router.post('/', auth(['admin', 'superviseur', 'superviseur_national']), validate(schemas.csiSchema), wrap(async (req, res) => {
   const { nom, region_id, commune, type, latitude, longitude, services } = req.body;
 
   // Superviseur : vérifier qu'il agit dans sa région
@@ -171,7 +171,7 @@ router.post('/csi', auth(['admin', 'superviseur', 'superviseur_national']), vali
 }));
 
 // ─── PUT /api/csi/:id ── Admin uniquement ────────────────────────────────────
-router.put('/csi/:id', auth(['admin']), validateIdParam('id'), wrap(async (req, res) => {
+router.put('/:id', auth(['admin']), validateIdParam('id'), wrap(async (req, res) => {
   const { id } = req.params;
   const { nom, latitude, longitude, services, actif } = req.body;
 
@@ -207,7 +207,7 @@ router.put('/csi/:id', auth(['admin']), validateIdParam('id'), wrap(async (req, 
 }));
 
 // ─── DELETE /api/csi/:id ── Soft delete, admin uniquement ────────────────────
-router.delete('/csi/:id', auth(['admin']), validateIdParam('id'), wrap(async (req, res) => {
+router.delete('/:id', auth(['admin']), validateIdParam('id'), wrap(async (req, res) => {
   const { rows } = await pool.query(
     'UPDATE csi SET actif = FALSE WHERE id = $1 RETURNING id, nom',
     [req.params.id]
